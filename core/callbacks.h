@@ -15,6 +15,9 @@ public:
     class StaticCallback : public Callback {
     public:
         StaticCallback(void (*_cb)(const CanardRxTransfer& transfer, const c_msg_type& msg)) : cb(_cb) {}
+        // delete default constructor
+        StaticCallback() = delete;
+
         void operator()(const CanardRxTransfer& transfer, const c_msg_type& msg) override {
             cb(transfer, msg);
         }
@@ -27,14 +30,22 @@ public:
     template <typename T>
     class ObjCallback : public Callback {
     public:
-        ObjCallback(T* obj, void (T::*_cb)(const CanardRxTransfer& transfer, const c_msg_type& msg)) : obj(obj), cb(_cb) {}
+        constexpr ObjCallback(void (T::*_cb)(const CanardRxTransfer& transfer, const c_msg_type& msg)) : cb(_cb) {}
         void operator()(const CanardRxTransfer& transfer, const c_msg_type& msg) override {
-            (obj->*cb)(transfer, msg);
+            if (obj != nullptr) {
+                (obj->*cb)(transfer, msg);
+            }
+        }
+        // bind
+        void bind(T* _obj) {
+            obj = _obj;
         }
     private:
-        T* obj;
+        T *obj = nullptr;
         void (T::*cb)(const CanardRxTransfer& transfer, const c_msg_type& msg);
     };
 };
 
 } // namespace CubeFramework
+
+#define CF_BIND(HANDLERNAME, OBJ) HANDLERNAME##_callback.bind(OBJ);

@@ -8,10 +8,7 @@ namespace CubeFramework {
  
 /// @brief Base class for all message handlers.
 class Handler {
-protected:
-    Handler* next;
 public:
-    Handler* get_next() { return next; }
     virtual void handle_message(const CanardRxTransfer& transfer) = 0;
 };
 

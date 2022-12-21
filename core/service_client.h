@@ -18,13 +18,31 @@ public:
     cb(_cb) {
         static svcnode _node(CanardTransferTypeResponse, svctype::ID, svctype::SIGNATURE);
         node = &_node;
-        Handler* head = node->get_branch_head();
+        Client<svctype, svcnode>* head = (Client<svctype, svcnode>*)node->get_branch_head();
         next = head;
         node->set_branch_head(this);
     }
 
     // delete copy constructor and assignment operator
     Client(const Client&) = delete;
+
+    // destructor, remove the entry from the singly-linked list
+    ~Client() {
+        Client<svctype, svcnode>* entry = this;
+        Client<svctype, svcnode>* prev = nullptr;
+        while (entry != nullptr) {
+            if (entry == this) {
+                if (prev != nullptr) {
+                    prev->next = entry->next;
+                } else {
+                    node->set_branch_head(entry->next);
+                }
+                break;
+            }
+            prev = entry;
+            entry = entry->next;
+        }
+    }
 
     void handle_message(const CanardRxTransfer& transfer) {
         typename svctype::c_rsp_type msg {};
@@ -38,7 +56,7 @@ public:
                 entry->cb(transfer, msg);
                 return;
             }
-            entry = (Client<svctype, svcnode>*)entry->get_next();
+            entry = entry->next;
         }
     }
 
@@ -98,6 +116,7 @@ private:
 #if CANARD_ENABLE_CANFD
     bool canfd = false;
 #endif
+    Client<svctype, svcnode>* next;
 };
 
 template <typename svctype, typename svcnode>
