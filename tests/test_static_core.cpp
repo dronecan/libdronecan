@@ -57,8 +57,87 @@ TEST(StaticCoreTest, test_publish_subscribe) {
     ASSERT_TRUE(called_handle_node_status);
 }
 
-// test service server
+// test multiple subscribers
 
+// default test subscriber without
+class TestSubscriber0 {
+public:
+    TestSubscriber0() {
+        CF_BIND(node_status_sub, this);
+    }
+    void handle_node_status(const CanardRxTransfer &transfer, const uavcan_protocol_NodeStatus &msg);
+    static int call_counts;
+
+private:
+    CF_SUBSCRIBE_MSG_CLASS(node_status_sub, uavcan_protocol_NodeStatus, TestSubscriber0, &TestSubscriber0::handle_node_status);
+};
+
+void TestSubscriber0::handle_node_status(const CanardRxTransfer &transfer, const uavcan_protocol_NodeStatus &msg) {
+    called_handle_node_status = true;
+    last_transfer = transfer;
+    // check if message is correct
+    ASSERT_EQ(memcmp(&msg, &sent_msg, sizeof(uavcan_protocol_NodeStatus)), 0);
+    call_counts++;
+}
+
+int TestSubscriber0::call_counts = 0;
+
+// test subsriber with index 1
+class TestSubscriber1 {
+public:
+    TestSubscriber1() {
+        CF_BIND(node_status_sub, this);
+    }
+    void handle_node_status(const CanardRxTransfer &transfer, const uavcan_protocol_NodeStatus &msg) {
+        called_handle_node_status = true;
+        last_transfer = transfer;
+        // check if message is correct
+        ASSERT_EQ(memcmp(&msg, &sent_msg, sizeof(uavcan_protocol_NodeStatus)), 0);
+        call_counts++;
+    }
+    static int call_counts;
+private:
+    CF_SUBSCRIBE_MSG_CLASS_INDEX(1, node_status_sub, uavcan_protocol_NodeStatus, TestSubscriber1, &TestSubscriber1::handle_node_status);
+};
+
+int TestSubscriber1::call_counts = 0;
+
+// Create 5 subscribers and check if all of them are called
+TEST(StaticCoreTest, test_multiple_subscribers) {
+    // create publisher for message uavcan_protocol_NodeStatus on interface CoreTestInterface
+    // with callback function handle_node_status
+    CF_PUBLISHER(node_status_pub0, CoreTestInterface, uavcan_protocol_NodeStatus);
+    // create publisher for message uavcan_protocol_NodeStatus on different interface instance CoreTestInterface
+    // with callback function handle_node_status
+    CF_PUBLISHER_INDEX(1, node_status_pub1, CoreTestInterface, uavcan_protocol_NodeStatus);
+
+    TestSubscriber0 test_subscriber0[5] __attribute__((unused)) {};
+    TestSubscriber1 test_subscriber1[5] __attribute__((unused)) {};
+
+    // set node id for interfaces
+    CF_CORE_TEST_INTERFACE(0).set_node_id(1);
+    CF_CORE_TEST_INTERFACE(1).set_node_id(2);
+
+    // create message
+    uavcan_protocol_NodeStatus msg {};
+    msg.uptime_sec = 1;
+    msg.health = 2;
+    msg.mode = 3;
+    msg.sub_mode = 4;
+    msg.vendor_specific_status_code = 5;
+    sent_msg = msg;
+
+    // publish message
+    ASSERT_TRUE(node_status_pub0.broadcast(msg));
+    // check if message was received 5 times
+    ASSERT_EQ(TestSubscriber1::call_counts, 5);
+    // publish message
+    ASSERT_TRUE(node_status_pub1.broadcast(msg));
+    // check if message was received 5 times
+    ASSERT_EQ(TestSubscriber0::call_counts, 5);
+}
+
+// test service server
 bool handle_get_node_info_response_called = false;
 void handle_get_node_info_response(const CanardRxTransfer &transfer, const uavcan_protocol_GetNodeInfoResponse &res) {
     ASSERT_EQ(res.status.uptime_sec, 1);
