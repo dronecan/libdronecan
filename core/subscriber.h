@@ -90,7 +90,7 @@ private:
 /// @param NID node instance id
 /// @param SUBNAME name of the subscriber instance
 /// @param MSGTYPE message type name
-/// @param OBJ object instance
+/// @param CLASS class name
 /// @param MSG_HANDLER callback function, called when message is received
 #define CF_SUBSCRIBE_MSG_CLASS_INDEX(NID, SUBNAME, MSGTYPE, CLASS, MSG_HANDLER) \
     CubeFramework::CallbackContainer<MSGTYPE##_cxx_iface::c_msg_type>::ObjCallback<CLASS> SUBNAME##_callback{MSG_HANDLER}; \
@@ -99,7 +99,7 @@ private:
 /// @brief Register a message handler with object instance
 /// @param SUBNAME name of the subscriber instance
 /// @param MSGTYPE message type name
-/// @param OBJ object instance
+/// @param CLASS class name
 /// @param MSG_HANDLER callback function, called when message is received
 #define CF_SUBSCRIBE_MSG_CLASS(SUBNAME, MSGTYPE, CLASS, MSG_HANDLER) \
     CubeFramework::CallbackContainer<MSGTYPE##_cxx_iface::c_msg_type>::ObjCallback<CLASS> SUBNAME##_callback{MSG_HANDLER}; \

@@ -89,21 +89,21 @@ private:
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::StaticCallback SRVNAME##_callback{REQHANDLER}; \
     CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> SRVNAME{SRVNAME##_callback};
 
-/// @brief create a server instance with indexed node and object instance
-/// @param ID node instance id
+/// @brief create a client instance
 /// @param SRVNAME server instance name
-/// @param SVCTYPE service type name
-/// @param OBJ object instance
-/// @param REQHANDLER request handler member function of object instance
-#define CF_CREATE_SERVER_INDEX_OBJ(ID, SRVNAME, SVCTYPE, OBJ, REQHANDLER) \
-    CubeFramework::Server<SVCTYPE, CubeFramework::Node<ID>> \
-    SRVNAME(CubeFramework::Server::ObjCallback(OBJ, REQHANDLER));
+/// @param SVCTYPE service type
+/// @param CLASS class name
+/// @param REQHANDLER request handler callback member function of OBJ
+#define CF_CREATE_SERVER_CLASS(SRVNAME, SVCTYPE, CLASS, REQHANDLER) \
+    CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::ObjCallback<CLASS> SRVNAME##_callback{REQHANDLER}; \
+    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> SRVNAME{SRVNAME##_callback};
 
-/// @brief create a server instance with object instance
+/// @brief create a client instance with indexed Node
+/// @param ID Node index
 /// @param SRVNAME server instance name
-/// @param SVCTYPE service type name
-/// @param OBJ object instance
-/// @param REQHANDLER request handler member function of object instance
-#define CF_CREATE_SERVER_OBJ(SRVNAME, SVCTYPE, OBJ, REQHANDLER) \
-    CubeFramework::Server<SVCTYPE, CubeFramework::Node<0>> \
-    SRVNAME(CubeFramework::Server::ObjCallback(OBJ, REQHANDLER));
+/// @param SVCTYPE service type
+/// @param CLASS class name
+/// @param REQHANDLER request handler callback member function of OBJ
+#define CF_CREATE_SERVER_CLASS_INDEX(ID, SRVNAME, SVCTYPE, CLASS, REQHANDLER) \
+    CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::ObjCallback<CLASS> SRVNAME##_callback{REQHANDLER}; \
+    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> SRVNAME{SRVNAME##_callback};
