@@ -12,7 +12,7 @@ using namespace CubeFramework;
 INITIALISE_NODE(CoreTestInterface, 0); // initialise node 0
 INITIALISE_NODE(CoreTestInterface, 1); // initialise node 1
 
-// test publisher and subscriber
+///////////// TESTS for Subscriber and Publisher //////////////
 static bool called_handle_node_status = false;
 static uavcan_protocol_NodeStatus sent_msg;
 static CanardRxTransfer last_transfer;
@@ -137,7 +137,9 @@ TEST(StaticCoreTest, test_multiple_subscribers) {
     ASSERT_EQ(TestSubscriber0::call_counts, 5);
 }
 
-// test service server
+//////////// TESTS FOR SERVICE //////////////
+
+// test single server single client
 bool handle_get_node_info_response_called = false;
 void handle_get_node_info_response(const CanardRxTransfer &transfer, const uavcan_protocol_GetNodeInfoResponse &res) {
     ASSERT_EQ(res.status.uptime_sec, 1);
@@ -216,4 +218,134 @@ TEST(StaticCoreTest, test_service) {
     ASSERT_TRUE(get_node_info_client1.request(1, req));
     // check if response was received
     ASSERT_TRUE(handle_get_node_info_response_called);
+}
+
+// test single server multiple clients
+class TestClient0 {
+public:
+    TestClient0() {
+        CF_BIND(get_node_info_client, this);
+    }
+    static int call_counts;
+    void handle_get_node_info_response(const CanardRxTransfer &transfer, const uavcan_protocol_GetNodeInfoResponse &res) {
+        ASSERT_EQ(res.status.uptime_sec, 1);
+        ASSERT_EQ(res.status.health, 2);
+        ASSERT_EQ(res.status.mode, 3);
+        ASSERT_EQ(res.status.sub_mode, 4);
+        ASSERT_EQ(res.status.vendor_specific_status_code, 5);
+        ASSERT_EQ(res.software_version.major, 1);
+        ASSERT_EQ(res.software_version.minor, 2);
+        ASSERT_EQ(res.hardware_version.major, 3);
+        ASSERT_EQ(res.hardware_version.minor, 4);
+        ASSERT_EQ(res.name.len, strlen("helloworld"));
+        ASSERT_EQ(memcmp(res.name.data, "helloworld", res.name.len), 0);
+        call_counts++;
+    }
+    CF_CREATE_CLIENT_CLASS(get_node_info_client, uavcan_protocol_GetNodeInfo, TestClient0, &TestClient0::handle_get_node_info_response);
+};
+
+class TestClient1 {
+public:
+    TestClient1() {
+        CF_BIND(get_node_info_client, this);
+    }
+    static int call_counts;
+    void handle_get_node_info_response(const CanardRxTransfer &transfer, const uavcan_protocol_GetNodeInfoResponse &res) {
+        ASSERT_EQ(res.status.uptime_sec, 1);
+        ASSERT_EQ(res.status.health, 2);
+        ASSERT_EQ(res.status.mode, 3);
+        ASSERT_EQ(res.status.sub_mode, 4);
+        ASSERT_EQ(res.status.vendor_specific_status_code, 5);
+        ASSERT_EQ(res.software_version.major, 1);
+        ASSERT_EQ(res.software_version.minor, 2);
+        ASSERT_EQ(res.hardware_version.major, 3);
+        ASSERT_EQ(res.hardware_version.minor, 4);
+        ASSERT_EQ(res.name.len, strlen("helloworld"));
+        ASSERT_EQ(memcmp(res.name.data, "helloworld", res.name.len), 0);
+        call_counts++;
+    }
+    CF_CREATE_CLIENT_CLASS_INDEX(1, get_node_info_client, uavcan_protocol_GetNodeInfo, TestClient1, &TestClient1::handle_get_node_info_response);
+};
+
+int TestClient0::call_counts = 0;
+int TestClient1::call_counts = 0;
+
+class TestServer0 {
+public:
+    TestServer0() {
+        CF_BIND(get_node_info_server, this);
+    }
+    static int call_counts;
+    void handle_get_node_info_request(const CanardRxTransfer &transfer, const uavcan_protocol_GetNodeInfoRequest &req) {
+        call_counts++;
+        uavcan_protocol_GetNodeInfoResponse res {};
+        res.status.uptime_sec = 1;
+        res.status.health = 2;
+        res.status.mode = 3;
+        res.status.sub_mode = 4;
+        res.status.vendor_specific_status_code = 5;
+        res.software_version.major = 1;
+        res.software_version.minor = 2;
+        res.hardware_version.major = 3;
+        res.hardware_version.minor = 4;
+        res.name.len = strlen("helloworld");
+        memcpy(res.name.data, "helloworld", res.name.len);
+        get_node_info_server.respond(transfer, res);
+    }
+    CF_CREATE_SERVER_CLASS(get_node_info_server, uavcan_protocol_GetNodeInfo, TestServer0, &TestServer0::handle_get_node_info_request);
+};
+
+class TestServer1 {
+    CF_CREATE_SERVER_CLASS_INDEX(1, get_node_info_server, uavcan_protocol_GetNodeInfo, TestServer1, &TestServer1::handle_get_node_info_request);
+public:
+    TestServer1() {
+        CF_BIND(get_node_info_server, this);
+    }
+    static int call_counts;
+    void handle_get_node_info_request(const CanardRxTransfer &transfer, const uavcan_protocol_GetNodeInfoRequest &req) {
+        call_counts++;
+        uavcan_protocol_GetNodeInfoResponse res {};
+        res.status.uptime_sec = 1;
+        res.status.health = 2;
+        res.status.mode = 3;
+        res.status.sub_mode = 4;
+        res.status.vendor_specific_status_code = 5;
+        res.software_version.major = 1;
+        res.software_version.minor = 2;
+        res.hardware_version.major = 3;
+        res.hardware_version.minor = 4;
+        res.name.len = strlen("helloworld");
+        memcpy(res.name.data, "helloworld", res.name.len);
+        get_node_info_server.respond(transfer, res);
+    }
+};
+
+int TestServer0::call_counts = 0;
+int TestServer1::call_counts = 0;
+
+TEST(StaticCoreTest, test_multiple_clients) {
+    // create multiple clients
+    TestClient0 client0[2];
+    TestClient1 client1[2];
+    // create servers
+    TestServer0 server0 __attribute__((unused));
+    TestServer1 server1 __attribute__((unused));
+
+    // set node id
+    CF_CORE_TEST_INTERFACE(0).set_node_id(1);
+    CF_CORE_TEST_INTERFACE(1).set_node_id(2);
+
+    // send request
+    uavcan_protocol_GetNodeInfoRequest req {};
+    EXPECT_TRUE(client0[0].get_node_info_client.request(2, req));
+    ASSERT_EQ(TestClient0::call_counts, 1);
+    EXPECT_TRUE(client0[1].get_node_info_client.request(2, req));
+    ASSERT_EQ(TestClient0::call_counts, 2);
+    ASSERT_EQ(TestServer1::call_counts, 2);
+
+    EXPECT_TRUE(client1[0].get_node_info_client.request(1, req));
+    ASSERT_EQ(TestClient1::call_counts, 1);
+    EXPECT_TRUE(client1[1].get_node_info_client.request(1, req));
+    ASSERT_EQ(TestClient1::call_counts, 2);
+    ASSERT_EQ(TestServer0::call_counts, 2);
 }
