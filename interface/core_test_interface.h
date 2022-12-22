@@ -65,6 +65,6 @@ private:
 /// @brief get singleton instance of interface, used by node to publish messages
 #define CF_CORE_TEST_INTERFACE_DEFINE(index) \
     CubeFramework::CoreTestInterface test_interface_##index \
-    {index, CubeFramework::Node<index>::accept_message, CubeFramework::Node<index>::handle_message};
+    {index, CubeFramework::HandlerList<index>::accept_message, CubeFramework::HandlerList<index>::handle_message};
 
 #define CF_CORE_TEST_INTERFACE(index) test_interface_##index

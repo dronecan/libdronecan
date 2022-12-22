@@ -11,13 +11,13 @@ public:
     virtual void handle_message(const CanardRxTransfer& transfer) = 0;
 };
 
-/// @brief Node to register all handled message types.
-/// @tparam index Index of the node.
+/// @brief HandlerList to register all handled message types.
+/// @tparam index Index of the HandlerList.
 template <int index>
-class Node {
+class HandlerList {
 public:
     /// @brief Constructor call creates a new handler entry for the message type.
-    Node(CanardTransferType _transfer_type, uint16_t _msgid, uint64_t _signature) {
+    HandlerList(CanardTransferType _transfer_type, uint16_t _msgid, uint64_t _signature) {
         // find the entry in the registry with the same msgid
         next = head;
         head = this;
@@ -27,14 +27,14 @@ public:
     }
 
     /// @brief delete copy constructor and assignment operator
-    Node(const Node&) = delete;
+    HandlerList(const HandlerList&) = delete;
 
     /// @brief should accept message id
     /// @param msgid
     /// @return true if message id is accepted and also sets the signature
     static bool accept_message(uint16_t msgid, uint64_t &signature)
     {
-        Node* entry = head;
+        HandlerList* entry = head;
         while (entry != nullptr) {
             if (entry->msgid == msgid && entry->branch_head != nullptr) {
                 signature = entry->signature;
@@ -50,7 +50,7 @@ public:
     /// @param transfer_id
     static void handle_message(const CanardRxTransfer& transfer)
     {
-        Node* entry = head;
+        HandlerList* entry = head;
         while (entry != nullptr) {
             if (transfer.data_type_id == entry->msgid &&
                 entry->branch_head != nullptr &&
@@ -70,8 +70,8 @@ public:
     }
 
 private:
-    Node* next;
-    static Node* head;
+    HandlerList* next;
+    static HandlerList* head;
 
     uint16_t msgid;
     uint64_t signature;
@@ -80,6 +80,6 @@ private:
 };
 
 template <int index>
-Node<index>* Node<index>::head = nullptr;
+HandlerList<index>* HandlerList<index>::head = nullptr;
 
 } // namespace CubeFramework

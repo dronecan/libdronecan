@@ -3,25 +3,25 @@
 #include <stdint.h>
 #include <canard.h>
 #include "callbacks.h"
-#include "node.h"
+#include "handler_list.h"
 
 namespace CubeFramework {
 
 /// @brief Class to handle broadcast messages
 /// @tparam msgtype 
-/// @tparam msgnode
-template <typename msgtype, typename msgnode>
+/// @tparam handlerlist
+template <typename msgtype, typename handlerlist>
 class Subscriber : public Handler {
 public:
     /// @brief Constructor call creates a new entry of listener into the callback list for msgtype.
     /// @param cb 
     Subscriber(typename CallbackContainer<typename msgtype::c_msg_type>::Callback &_cb) :
     cb (_cb) {
-        static msgnode _node(CanardTransferTypeBroadcast, msgtype::ID, msgtype::SIGNATURE);
-        node = &_node;
-        Subscriber<msgtype, msgnode>* head = (Subscriber<msgtype, msgnode>*)node->get_branch_head();
+        static handlerlist _handler_list(CanardTransferTypeBroadcast, msgtype::ID, msgtype::SIGNATURE);
+        handler_list = &_handler_list;
+        Subscriber<msgtype, handlerlist>* head = (Subscriber<msgtype, handlerlist>*)handler_list->get_branch_head();
         next = head;
-        node->set_branch_head(this);
+        handler_list->set_branch_head(this);
     }
 
     // delete copy constructor and assignment operator
@@ -29,14 +29,14 @@ public:
 
     // destructor, remove the entry from the singly-linked list
     ~Subscriber() {
-        Subscriber<msgtype, msgnode>* entry = this;
-        Subscriber<msgtype, msgnode>* prev = nullptr;
+        Subscriber<msgtype, handlerlist>* entry = this;
+        Subscriber<msgtype, handlerlist>* prev = nullptr;
         while (entry != nullptr) {
             if (entry == this) {
                 if (prev != nullptr) {
                     prev->next = entry->next;
                 } else {
-                    node->set_branch_head(entry->next);
+                    handler_list->set_branch_head(entry->next);
                 }
                 break;
             }
@@ -53,7 +53,7 @@ public:
         typename msgtype::c_msg_type msg {};
         msgtype::decode(&transfer, &msg);
         // call all registered callbacks
-        Subscriber<msgtype, msgnode>* entry = this;
+        Subscriber<msgtype, handlerlist>* entry = this;
         while (entry != nullptr) {
             entry->cb(transfer, msg);
             entry = entry->next;
@@ -61,22 +61,22 @@ public:
     }
 
 private:
-    Subscriber<msgtype, msgnode>* next;
-    msgnode *node;
+    Subscriber<msgtype, handlerlist>* next;
+    handlerlist *handler_list;
     typename CallbackContainer<typename msgtype::c_msg_type>::Callback &cb;
 };
 } // namespace CubeFramework
 
 /// Helper macros to register message handlers
 
-/// @brief Register a message handler using indexed node.
-/// @param NID node instance id
+/// @brief Register a message handler using indexed handler_list.
+/// @param NID handler_list instance id
 /// @param SUBNAME name of the subscriber instance
 /// @param MSGTYPE message type name
 /// @param MSG_HANDLER callback function, called when message is received
 #define CF_SUBSCRIBE_MSG_INDEXED(NID, SUBNAME, MSGTYPE, MSG_HANDLER) \
     CubeFramework::CallbackContainer<MSGTYPE##_cxx_iface::c_msg_type>::StaticCallback SUBNAME##_callback{MSG_HANDLER}; \
-    CubeFramework::Subscriber<MSGTYPE##_cxx_iface, CubeFramework::Node<NID>> SUBNAME{SUBNAME##_callback};
+    CubeFramework::Subscriber<MSGTYPE##_cxx_iface, CubeFramework::HandlerList<NID>> SUBNAME{SUBNAME##_callback};
 
 /// @brief Register a message handler
 /// @param SUBNAME name of the subscriber instance
@@ -84,17 +84,17 @@ private:
 /// @param MSG_HANDLER callback function, called when message is received
 #define CF_SUBSCRIBE_MSG(SUBNAME, MSGTYPE, MSG_HANDLER) \
     CubeFramework::CallbackContainer<MSGTYPE##_cxx_iface::c_msg_type>::StaticCallback SUBNAME##_callback{MSG_HANDLER}; \
-    CubeFramework::Subscriber<MSGTYPE##_cxx_iface, CubeFramework::Node<0>> SUBNAME{SUBNAME##_callback};
+    CubeFramework::Subscriber<MSGTYPE##_cxx_iface, CubeFramework::HandlerList<0>> SUBNAME{SUBNAME##_callback};
 
-/// @brief Register a message handler with object instance using indexed node
-/// @param NID node instance id
+/// @brief Register a message handler with object instance using indexed handler_list
+/// @param NID handler_list instance id
 /// @param SUBNAME name of the subscriber instance
 /// @param MSGTYPE message type name
 /// @param CLASS class name
 /// @param MSG_HANDLER callback function, called when message is received
 #define CF_SUBSCRIBE_MSG_CLASS_INDEX(NID, SUBNAME, MSGTYPE, CLASS, MSG_HANDLER) \
     CubeFramework::CallbackContainer<MSGTYPE##_cxx_iface::c_msg_type>::ObjCallback<CLASS> SUBNAME##_callback{MSG_HANDLER}; \
-    CubeFramework::Subscriber<MSGTYPE##_cxx_iface, CubeFramework::Node<NID>> SUBNAME{SUBNAME##_callback};
+    CubeFramework::Subscriber<MSGTYPE##_cxx_iface, CubeFramework::HandlerList<NID>> SUBNAME{SUBNAME##_callback};
 
 /// @brief Register a message handler with object instance
 /// @param SUBNAME name of the subscriber instance
@@ -103,4 +103,4 @@ private:
 /// @param MSG_HANDLER callback function, called when message is received
 #define CF_SUBSCRIBE_MSG_CLASS(SUBNAME, MSGTYPE, CLASS, MSG_HANDLER) \
     CubeFramework::CallbackContainer<MSGTYPE##_cxx_iface::c_msg_type>::ObjCallback<CLASS> SUBNAME##_callback{MSG_HANDLER}; \
-    CubeFramework::Subscriber<MSGTYPE##_cxx_iface, CubeFramework::Node<0>> SUBNAME{SUBNAME##_callback};
+    CubeFramework::Subscriber<MSGTYPE##_cxx_iface, CubeFramework::HandlerList<0>> SUBNAME{SUBNAME##_callback};

@@ -1,5 +1,5 @@
 #pragma once
-#include "node.h"
+#include "interface.h"
 #include <canard.h>
 
 namespace CubeFramework {

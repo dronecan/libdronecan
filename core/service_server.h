@@ -1,10 +1,10 @@
 #pragma once
-#include "node.h"
+#include "handler_list.h"
 #include "interface.h"
 
 namespace CubeFramework {
 
-template <typename svctype, typename svcnode>
+template <typename svctype, typename handlerlist>
 class Server : public Handler {
 
 public:
@@ -12,9 +12,9 @@ public:
     interface(_interface),
     cb(_cb) {
         // register the listener for the service request
-        static svcnode _node(CanardTransferTypeRequest, svctype::ID, svctype::SIGNATURE);
-        node = &_node;
-        node->set_branch_head(this);
+        static handlerlist _handler_list(CanardTransferTypeRequest, svctype::ID, svctype::SIGNATURE);
+        handler_list = &_handler_list;
+        handler_list->set_branch_head(this);
     }
 
     // delete copy constructor and assignment operator
@@ -61,7 +61,7 @@ private:
     Interface &interface;
     typename CallbackContainer<typename svctype::c_req_type>::Callback &cb;
 
-    svcnode *node;
+    handlerlist *handler_list;
 
     uint8_t priority = CANARD_TRANSFER_PRIORITY_MEDIUM;
     uint8_t transfer_id = 0;
@@ -74,15 +74,15 @@ private:
 
 /// Helper macros to create server instances
 
-/// @brief create a server instance with indexed node
+/// @brief create a server instance with indexed handler_list
 /// @param IFACE interface instance name
-/// @param ID node instance id
+/// @param ID handler_list instance id
 /// @param SRVNAME server instance name
 /// @param SVCTYPE service type name
 /// @param REQHANDLER request handler function
 #define CF_CREATE_SERVER_INDEX(IFACE, ID, SRVNAME, SVCTYPE, REQHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::StaticCallback SRVNAME##_callback{REQHANDLER}; \
-    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> SRVNAME{IFACE, SRVNAME##_callback};
+    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::HandlerList<ID>> SRVNAME{IFACE, SRVNAME##_callback};
 
 /// @brief create a server instance
 /// @param IFACE interface instance name
@@ -91,7 +91,7 @@ private:
 /// @param REQHANDLER request handler function
 #define CF_CREATE_SERVER(IFACE, SRVNAME, SVCTYPE, REQHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::StaticCallback SRVNAME##_callback{REQHANDLER}; \
-    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> SRVNAME{IFACE, SRVNAME##_callback};
+    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::HandlerList<0>> SRVNAME{IFACE, SRVNAME##_callback};
 
 /// @brief create a client instance
 /// @param IFACE interface instance name
@@ -101,15 +101,15 @@ private:
 /// @param REQHANDLER request handler callback member function of OBJ
 #define CF_CREATE_SERVER_CLASS(IFACE, SRVNAME, SVCTYPE, CLASS, REQHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::ObjCallback<CLASS> SRVNAME##_callback{REQHANDLER}; \
-    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> SRVNAME{IFACE, SRVNAME##_callback};
+    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::HandlerList<0>> SRVNAME{IFACE, SRVNAME##_callback};
 
-/// @brief create a client instance with indexed Node
+/// @brief create a client instance with indexed HandlerList
 /// @param IFACE interface instance name
-/// @param ID Node index
+/// @param ID HandlerList index
 /// @param SRVNAME server instance name
 /// @param SVCTYPE service type
 /// @param CLASS class name
 /// @param REQHANDLER request handler callback member function of OBJ
 #define CF_CREATE_SERVER_CLASS_INDEX(IFACE, ID, SRVNAME, SVCTYPE, CLASS, REQHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::ObjCallback<CLASS> SRVNAME##_callback{REQHANDLER}; \
-    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> SRVNAME{IFACE, SRVNAME##_callback};
+    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::HandlerList<ID>> SRVNAME{IFACE, SRVNAME##_callback};
