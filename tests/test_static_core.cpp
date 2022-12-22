@@ -1,7 +1,7 @@
+#include "common_test.h"
 #include <interface/core_test_interface.h>
 #include <core/publisher.h>
 #include <core/subscriber.h>
-#define DRONECAN_CXX_WRAPPERS
 #include <dronecan_msgs.h>
 #include <gtest/gtest.h>
 #include <core/service_server.h>
@@ -9,19 +9,21 @@
 
 using namespace CubeFramework;
 
+namespace StaticCoreTest {
+
 ///////////// TESTS for Subscriber and Publisher //////////////
 static bool called_handle_node_status = false;
 static uavcan_protocol_NodeStatus sent_msg;
 static CanardRxTransfer last_transfer;
-void handle_node_status(const CanardRxTransfer &transfer, const uavcan_protocol_NodeStatus &msg) {
+static void handle_node_status(const CanardRxTransfer &transfer, const uavcan_protocol_NodeStatus &msg) {
     called_handle_node_status = true;
     last_transfer = transfer;
     // check if message is correct
     ASSERT_EQ(memcmp(&msg, &sent_msg, sizeof(uavcan_protocol_NodeStatus)), 0);
 }
 
-CF_CORE_TEST_INTERFACE_DEFINE(0);
-CF_CORE_TEST_INTERFACE_DEFINE(1);
+static CF_CORE_TEST_INTERFACE_DEFINE(0);
+static CF_CORE_TEST_INTERFACE_DEFINE(1);
 
 TEST(StaticCoreTest, test_publish_subscribe) {
     // create publisher for message uavcan_protocol_NodeStatus on interface CoreTestInterface
@@ -367,3 +369,5 @@ TEST(StaticCoreTest, test_multiple_clients) {
     ASSERT_EQ(TestClient1::call_counts, 2);
     ASSERT_EQ(TestServer0::call_counts, 2);
 }
+
+} // namespace StaticCoreTest
