@@ -8,7 +8,8 @@ template <typename svctype, typename svcnode>
 class Server : public Handler {
 
 public:
-    Server(typename CallbackContainer<typename svctype::c_req_type>::Callback &_cb) : 
+    Server(Interface &_interface, typename CallbackContainer<typename svctype::c_req_type>::Callback &_cb) : 
+    interface(_interface),
     cb(_cb) {
         // register the listener for the service request
         static svcnode _node(CanardTransferTypeRequest, svctype::ID, svctype::SIGNATURE);
@@ -49,7 +50,7 @@ public:
             rsp_transfer.payload = rsp_buf;
             rsp_transfer.payload_len = len;
             rsp_transfer.priority = transfer.priority;
-            return node->interface().respond(transfer.source_node_id, rsp_transfer);
+            return interface.respond(transfer.source_node_id, rsp_transfer);
         }
         return false;
     }
@@ -57,6 +58,7 @@ public:
 private:
     Transfer rsp_transfer;
     uint8_t rsp_buf[svctype::RSP_MAX_SIZE];
+    Interface &interface;
     typename CallbackContainer<typename svctype::c_req_type>::Callback &cb;
 
     svcnode *node;
@@ -73,37 +75,41 @@ private:
 /// Helper macros to create server instances
 
 /// @brief create a server instance with indexed node
+/// @param IFACE interface instance name
 /// @param ID node instance id
 /// @param SRVNAME server instance name
 /// @param SVCTYPE service type name
 /// @param REQHANDLER request handler function
-#define CF_CREATE_SERVER_INDEX(ID, SRVNAME, SVCTYPE, REQHANDLER) \
+#define CF_CREATE_SERVER_INDEX(IFACE, ID, SRVNAME, SVCTYPE, REQHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::StaticCallback SRVNAME##_callback{REQHANDLER}; \
-    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> SRVNAME{SRVNAME##_callback};
+    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> SRVNAME{IFACE, SRVNAME##_callback};
 
 /// @brief create a server instance
+/// @param IFACE interface instance name
 /// @param SRVNAME server instance name
 /// @param SVCTYPE service type name
 /// @param REQHANDLER request handler function
-#define CF_CREATE_SERVER(SRVNAME, SVCTYPE, REQHANDLER) \
+#define CF_CREATE_SERVER(IFACE, SRVNAME, SVCTYPE, REQHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::StaticCallback SRVNAME##_callback{REQHANDLER}; \
-    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> SRVNAME{SRVNAME##_callback};
+    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> SRVNAME{IFACE, SRVNAME##_callback};
 
 /// @brief create a client instance
+/// @param IFACE interface instance name
 /// @param SRVNAME server instance name
 /// @param SVCTYPE service type
 /// @param CLASS class name
 /// @param REQHANDLER request handler callback member function of OBJ
-#define CF_CREATE_SERVER_CLASS(SRVNAME, SVCTYPE, CLASS, REQHANDLER) \
+#define CF_CREATE_SERVER_CLASS(IFACE, SRVNAME, SVCTYPE, CLASS, REQHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::ObjCallback<CLASS> SRVNAME##_callback{REQHANDLER}; \
-    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> SRVNAME{SRVNAME##_callback};
+    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> SRVNAME{IFACE, SRVNAME##_callback};
 
 /// @brief create a client instance with indexed Node
+/// @param IFACE interface instance name
 /// @param ID Node index
 /// @param SRVNAME server instance name
 /// @param SVCTYPE service type
 /// @param CLASS class name
 /// @param REQHANDLER request handler callback member function of OBJ
-#define CF_CREATE_SERVER_CLASS_INDEX(ID, SRVNAME, SVCTYPE, CLASS, REQHANDLER) \
+#define CF_CREATE_SERVER_CLASS_INDEX(IFACE, ID, SRVNAME, SVCTYPE, CLASS, REQHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_req_type>::ObjCallback<CLASS> SRVNAME##_callback{REQHANDLER}; \
-    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> SRVNAME{SRVNAME##_callback};
+    CubeFramework::Server<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> SRVNAME{IFACE, SRVNAME##_callback};

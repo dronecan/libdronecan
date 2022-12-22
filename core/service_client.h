@@ -14,7 +14,8 @@ class Client : public Handler {
     uint8_t server_node_id;
     uint8_t transfer_id;
 public:
-    Client(typename CallbackContainer<typename svctype::c_rsp_type>::Callback &_cb) : 
+    Client(Interface &_interface, typename CallbackContainer<typename svctype::c_rsp_type>::Callback &_cb) : 
+    interface(_interface),
     cb(_cb) {
         static svcnode _node(CanardTransferTypeResponse, svctype::ID, svctype::SIGNATURE);
         node = &_node;
@@ -79,10 +80,12 @@ public:
 #endif
         server_node_id = destination_node_id;
         transfer_id = *req_transfer.inout_transfer_id;
-        return node->interface().request(destination_node_id, req_transfer);
+        return interface.request(destination_node_id, req_transfer);
     }
 
 private:
+    Interface &interface;
+
     uint8_t* get_transfer_id(uint8_t server_node_id) {
         transfer_id_t* entry = head;
         while (entry != nullptr) {
@@ -127,38 +130,42 @@ typename Client<svctype, svcnode>::transfer_id_t *Client<svctype, svcnode>::head
 /// Helper macros to create client instances
 
 /// @brief create a client instance
+/// @param IFACE interface instance name
 /// @param CLINAME client instance name
 /// @param SVCTYPE service type
 /// @param RSPHANDLER response handler callback
-#define CF_CREATE_CLIENT(CLINAME, SVCTYPE, RSPHANDLER) \
+#define CF_CREATE_CLIENT(IFACE, CLINAME, SVCTYPE, RSPHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_rsp_type>::StaticCallback CLINAME##_callback{RSPHANDLER}; \
-    CubeFramework::Client<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> CLINAME{CLINAME##_callback};
+    CubeFramework::Client<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> CLINAME{IFACE, CLINAME##_callback};
 
 
 /// @brief create a client instance with indexed Node
+/// @param IFACE interface instance name
 /// @param ID Node index
 /// @param CLINAME client instance name
 /// @param SVCTYPE service type
 /// @param RSPHANDLER response handler callback
-#define CF_CREATE_CLIENT_INDEX(ID, CLINAME, SVCTYPE, RSPHANDLER) \
+#define CF_CREATE_CLIENT_INDEX(IFACE, ID, CLINAME, SVCTYPE, RSPHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_rsp_type>::StaticCallback CLINAME##_callback{RSPHANDLER}; \
-    CubeFramework::Client<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> CLINAME{CLINAME##_callback};
+    CubeFramework::Client<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> CLINAME{IFACE, CLINAME##_callback};
 
 /// @brief create a client instance
+/// @param IFACE interface instance name
 /// @param CLINAME client instance name
 /// @param SVCTYPE service type
 /// @param CLASS class name
 /// @param RSPHANDLER response handler callback member function of OBJ
-#define CF_CREATE_CLIENT_CLASS(CLINAME, SVCTYPE, CLASS, RSPHANDLER) \
+#define CF_CREATE_CLIENT_CLASS(IFACE, CLINAME, SVCTYPE, CLASS, RSPHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_rsp_type>::ObjCallback<CLASS> CLINAME##_callback{RSPHANDLER}; \
-    CubeFramework::Client<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> CLINAME{CLINAME##_callback};
+    CubeFramework::Client<SVCTYPE##_cxx_iface, CubeFramework::Node<0>> CLINAME{IFACE, CLINAME##_callback};
 
 /// @brief create a client instance with indexed Node
+/// @param IFACE interface instance name
 /// @param ID Node index
 /// @param CLINAME client instance name
 /// @param SVCTYPE service type
 /// @param CLASS class name
 /// @param RSPHANDLER response handler callback member function of OBJ
-#define CF_CREATE_CLIENT_CLASS_INDEX(ID, CLINAME, SVCTYPE, CLASS, RSPHANDLER) \
+#define CF_CREATE_CLIENT_CLASS_INDEX(IFACE, ID, CLINAME, SVCTYPE, CLASS, RSPHANDLER) \
     CubeFramework::CallbackContainer<SVCTYPE##_cxx_iface::c_rsp_type>::ObjCallback<CLASS> CLINAME##_callback{RSPHANDLER}; \
-    CubeFramework::Client<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> CLINAME{CLINAME##_callback};
+    CubeFramework::Client<SVCTYPE##_cxx_iface, CubeFramework::Node<ID>> CLINAME{IFACE, CLINAME##_callback};

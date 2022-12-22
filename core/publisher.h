@@ -4,10 +4,10 @@
 
 namespace CubeFramework {
 
-template <typename msgtype, int index>
+template <typename msgtype>
 class Publisher {
 public:
-    Publisher(Interface<index> &_iface) :
+    Publisher(Interface &_iface) :
     iface(_iface) {}
 
     // delete copy constructor and assignment operator
@@ -40,7 +40,7 @@ public:
         return false;
     }
 private:
-    Interface<index> &iface;
+    Interface &iface;
     uint8_t msg_buf[msgtype::MAX_SIZE];
     uint8_t inout_transfer_id = 0;
     uint8_t priority = CANARD_TRANSFER_PRIORITY_MEDIUM;
@@ -54,16 +54,8 @@ private:
 } // namespace CubeFramework
 
 /// @brief Macro to create a publisher
+/// @param IFACE name of the interface
 /// @param PUBNAME name of the publisher
 /// @param MSGTYPE type of the message
-/// @param IFACETYPE name of the interface
-#define CF_PUBLISHER(PUBNAME, IFACETYPE, MSGTYPE) \
-    CubeFramework::Publisher<MSGTYPE##_cxx_iface, 0> PUBNAME{IFACETYPE<0>::get_singleton()};
-
-/// @brief Macro to create a publisher with an interface index
-/// @param ID index of the interface
-/// @param PUBNAME name of the publisher
-/// @param MSGTYPE type of the message
-/// @param IFACETYPE type of the interface
-#define CF_PUBLISHER_INDEX(ID, PUBNAME, IFACETYPE, MSGTYPE) \
-    CubeFramework::Publisher<MSGTYPE##_cxx_iface, ID> PUBNAME{IFACETYPE<ID>::get_singleton()};
+#define CF_PUBLISHER(IFACE, PUBNAME, MSGTYPE) \
+    CubeFramework::Publisher<MSGTYPE##_cxx_iface> PUBNAME{IFACE};

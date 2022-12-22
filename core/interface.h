@@ -16,23 +16,18 @@ struct Transfer {
     bool canfd;
 };
 
-class AbstractInterface {
-protected:
-    /// @brief check if the message should be accepted
-    /// @param transfer
-    virtual bool accept_message(uint16_t msgid, uint64_t &signature) = 0;
-
-    /// @brief process a received message through callbacks
-    /// @param transfer
-    virtual void handle_message(const CanardRxTransfer& transfer) = 0;
-};
-
-template <int index>
-class Node;
-
-template <int index>
-class Interface : public AbstractInterface {
+class Interface {
 public:
+    typedef bool (*accept_message_t)(uint16_t msgid, uint64_t &signature);
+    typedef void (*handle_message_t)(const CanardRxTransfer& transfer);
+
+    Interface(accept_message_t _accept_message, handle_message_t _handle_message) :
+    accept_message(_accept_message),
+    handle_message(_handle_message) {}
+
+    // delete default constructor
+    Interface() = delete;
+
     /// @brief broadcast message to all listeners on Interface
     /// @param bc_transfer
     /// @return true if message was added to the queue
@@ -51,19 +46,8 @@ public:
     virtual bool respond(uint8_t destination_node_id, Transfer res_transfer) = 0;
 
 protected:
-    /// @brief check if the message should be accepted
-    /// @param transfer
-    bool accept_message(uint16_t msgid, uint64_t &signature) override
-    {
-        return Node<index>::accept_message(msgid, signature);
-    }
-
-    /// @brief process a received message through callbacks
-    /// @param transfer
-    void handle_message(const CanardRxTransfer& transfer) override
-    {
-        Node<index>::handle_message(transfer);
-    }
+    accept_message_t accept_message;
+    handle_message_t handle_message;
 };
 
 } // namespace CubeFramework

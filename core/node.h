@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 #include <canard.h>
-#include "interface.h"
 
 namespace CubeFramework {
  
@@ -12,7 +11,8 @@ public:
     virtual void handle_message(const CanardRxTransfer& transfer) = 0;
 };
 
-/// @brief Trunk registry to register all handled message types.
+/// @brief Node to register all handled message types.
+/// @tparam index Index of the node.
 template <int index>
 class Node {
 public:
@@ -61,11 +61,6 @@ public:
         }
     }
 
-    /// @brief Interface class accessor
-    Interface<index>& interface() {
-        return iface;
-    }
-
     Handler* get_branch_head() {
         return branch_head;
     }
@@ -77,7 +72,6 @@ public:
 private:
     Node* next;
     static Node* head;
-    static Interface<index> &iface;
 
     uint16_t msgid;
     uint64_t signature;
@@ -89,7 +83,3 @@ template <int index>
 Node<index>* Node<index>::head = nullptr;
 
 } // namespace CubeFramework
-
-/// @brief Initialise the Node and set linked interface.
-#define INITIALISE_NODE(IFACE_TYPE, ID) \
-    template<> CubeFramework::Interface<ID> &CubeFramework::Node<ID>::iface = IFACE_TYPE<ID>::get_singleton();

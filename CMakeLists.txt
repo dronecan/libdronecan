@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 3.5)
 project(CubeFramework)
 
+set(INTERFACE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface)
 set(MODULES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/modules)
 set(TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 

@@ -9,9 +9,6 @@
 
 using namespace CubeFramework;
 
-INITIALISE_NODE(CoreTestInterface, 0); // initialise node 0
-INITIALISE_NODE(CoreTestInterface, 1); // initialise node 1
-
 ///////////// TESTS for Subscriber and Publisher //////////////
 static bool called_handle_node_status = false;
 static uavcan_protocol_NodeStatus sent_msg;
@@ -23,13 +20,16 @@ void handle_node_status(const CanardRxTransfer &transfer, const uavcan_protocol_
     ASSERT_EQ(memcmp(&msg, &sent_msg, sizeof(uavcan_protocol_NodeStatus)), 0);
 }
 
+CF_CORE_TEST_INTERFACE_DEFINE(0);
+CF_CORE_TEST_INTERFACE_DEFINE(1);
+
 TEST(StaticCoreTest, test_publish_subscribe) {
     // create publisher for message uavcan_protocol_NodeStatus on interface CoreTestInterface
     // with callback function handle_node_status
-    CF_PUBLISHER(node_status_pub0, CoreTestInterface, uavcan_protocol_NodeStatus);
+    CF_PUBLISHER(CF_CORE_TEST_INTERFACE(0), node_status_pub0, uavcan_protocol_NodeStatus);
     // create publisher for message uavcan_protocol_NodeStatus on different interface instance CoreTestInterface
     // with callback function handle_node_status
-    CF_PUBLISHER_INDEX(1, node_status_pub1, CoreTestInterface, uavcan_protocol_NodeStatus);
+    CF_PUBLISHER(CF_CORE_TEST_INTERFACE(1), node_status_pub1, uavcan_protocol_NodeStatus);
 
     // create subscriber for message uavcan_protocol_NodeStatus on interface CoreTestInterface
     CF_SUBSCRIBE_MSG(node_status_sub0, uavcan_protocol_NodeStatus, handle_node_status);
@@ -106,10 +106,10 @@ int TestSubscriber1::call_counts = 0;
 TEST(StaticCoreTest, test_multiple_subscribers) {
     // create publisher for message uavcan_protocol_NodeStatus on interface CoreTestInterface
     // with callback function handle_node_status
-    CF_PUBLISHER(node_status_pub0, CoreTestInterface, uavcan_protocol_NodeStatus);
+    CF_PUBLISHER(CF_CORE_TEST_INTERFACE(0), node_status_pub0, uavcan_protocol_NodeStatus);
     // create publisher for message uavcan_protocol_NodeStatus on different interface instance CoreTestInterface
     // with callback function handle_node_status
-    CF_PUBLISHER_INDEX(1, node_status_pub1, CoreTestInterface, uavcan_protocol_NodeStatus);
+    CF_PUBLISHER(CF_CORE_TEST_INTERFACE(1), node_status_pub1, uavcan_protocol_NodeStatus);
 
     TestSubscriber0 test_subscriber0[5] __attribute__((unused)) {};
     TestSubscriber1 test_subscriber1[5] __attribute__((unused)) {};
@@ -157,9 +157,9 @@ void handle_get_node_info_response(const CanardRxTransfer &transfer, const uavca
 }
 
 void handle_get_node_info_request0(const CanardRxTransfer &transfer, const uavcan_protocol_GetNodeInfoRequest &req);
-CF_CREATE_SERVER(get_node_info_server0, uavcan_protocol_GetNodeInfo, handle_get_node_info_request0);
+CF_CREATE_SERVER(CF_CORE_TEST_INTERFACE(0), get_node_info_server0, uavcan_protocol_GetNodeInfo, handle_get_node_info_request0);
 void handle_get_node_info_request1(const CanardRxTransfer &transfer, const uavcan_protocol_GetNodeInfoRequest &req);
-CF_CREATE_SERVER_INDEX(1, get_node_info_server1, uavcan_protocol_GetNodeInfo, handle_get_node_info_request1);
+CF_CREATE_SERVER_INDEX(CF_CORE_TEST_INTERFACE(1), 1, get_node_info_server1, uavcan_protocol_GetNodeInfo, handle_get_node_info_request1);
 
 void handle_get_node_info_request0(const CanardRxTransfer &transfer, const uavcan_protocol_GetNodeInfoRequest &req) {
     uavcan_protocol_GetNodeInfoResponse res {};
@@ -196,10 +196,10 @@ void handle_get_node_info_request1(const CanardRxTransfer &transfer, const uavca
 TEST(StaticCoreTest, test_service) {
     // create client for service uavcan_protocol_GetNodeInfo on interface CoreTestInterface
     // with response callback function handle_get_node_info_response
-    CF_CREATE_CLIENT(get_node_info_client0, uavcan_protocol_GetNodeInfo, handle_get_node_info_response);
+    CF_CREATE_CLIENT(CF_CORE_TEST_INTERFACE(0), get_node_info_client0, uavcan_protocol_GetNodeInfo, handle_get_node_info_response);
     // create client for service uavcan_protocol_GetNodeInfo on different interface instance CoreTestInterface
     // with response callback function handle_get_node_info_response
-    CF_CREATE_CLIENT_INDEX(1, get_node_info_client1, uavcan_protocol_GetNodeInfo, handle_get_node_info_response);
+    CF_CREATE_CLIENT_INDEX(CF_CORE_TEST_INTERFACE(1), 1, get_node_info_client1, uavcan_protocol_GetNodeInfo, handle_get_node_info_response);
 
     // set node id for interfaces
     CF_CORE_TEST_INTERFACE(0).set_node_id(1);
@@ -241,7 +241,11 @@ public:
         ASSERT_EQ(memcmp(res.name.data, "helloworld", res.name.len), 0);
         call_counts++;
     }
-    CF_CREATE_CLIENT_CLASS(get_node_info_client, uavcan_protocol_GetNodeInfo, TestClient0, &TestClient0::handle_get_node_info_response);
+    CF_CREATE_CLIENT_CLASS(CF_CORE_TEST_INTERFACE(0), // interface name
+                           get_node_info_client, // client name
+                           uavcan_protocol_GetNodeInfo, // service name
+                           TestClient0, // class name
+                           &TestClient0::handle_get_node_info_response); // callback function
 };
 
 class TestClient1 {
@@ -264,7 +268,12 @@ public:
         ASSERT_EQ(memcmp(res.name.data, "helloworld", res.name.len), 0);
         call_counts++;
     }
-    CF_CREATE_CLIENT_CLASS_INDEX(1, get_node_info_client, uavcan_protocol_GetNodeInfo, TestClient1, &TestClient1::handle_get_node_info_response);
+    CF_CREATE_CLIENT_CLASS_INDEX(CF_CORE_TEST_INTERFACE(1), // interface name
+                                 1, // interface index
+                                 get_node_info_client, // client name
+                                 uavcan_protocol_GetNodeInfo, // service name
+                                 TestClient1, // class name
+                                 &TestClient1::handle_get_node_info_response); // callback function
 };
 
 int TestClient0::call_counts = 0;
@@ -292,11 +301,20 @@ public:
         memcpy(res.name.data, "helloworld", res.name.len);
         get_node_info_server.respond(transfer, res);
     }
-    CF_CREATE_SERVER_CLASS(get_node_info_server, uavcan_protocol_GetNodeInfo, TestServer0, &TestServer0::handle_get_node_info_request);
+    CF_CREATE_SERVER_CLASS(CF_CORE_TEST_INTERFACE(0), // interface name
+                            get_node_info_server, // server name
+                            uavcan_protocol_GetNodeInfo, // service name
+                            TestServer0, // class name
+                            &TestServer0::handle_get_node_info_request); // callback function
 };
 
 class TestServer1 {
-    CF_CREATE_SERVER_CLASS_INDEX(1, get_node_info_server, uavcan_protocol_GetNodeInfo, TestServer1, &TestServer1::handle_get_node_info_request);
+    CF_CREATE_SERVER_CLASS_INDEX(CF_CORE_TEST_INTERFACE(1), // interface name
+                                  1, // node index
+                                  get_node_info_server, // server name
+                                  uavcan_protocol_GetNodeInfo, // service name
+                                  TestServer1, // class name
+                                  &TestServer1::handle_get_node_info_request); // callback function
 public:
     TestServer1() {
         CF_BIND(get_node_info_server, this);

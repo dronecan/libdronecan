@@ -4,6 +4,7 @@ enable_testing()
 
 file(GLOB_RECURSE TEST_SOURCES *.cpp)
 list(APPEND SRC_FILES ${TEST_SOURCES})
+list(APPEND SRC_FILES ${INTERFACE_DIR}/core_test_interface.cpp)
 
 include_directories(${MODULES_DIR}/googletest/googletest/include)
 
