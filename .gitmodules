@@ -13,3 +13,6 @@
 [submodule "modules/googletest"]
 	path = modules/googletest
 	url = https://github.com/google/googletest
+[submodule "modules/ChibiOS"]
+	path = modules/ChibiOS
+	url = git@github.com:CubePilot/ChibiOS
