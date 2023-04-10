@@ -10,10 +10,10 @@ public:
     DataIface(CanardIface &canard_iface) : canard_iface(canard_iface) {}
 
     virtual void init() = 0;
-    virtual bool send(const Canard::Transfer &transfer) = 0;
+    virtual bool send(const CanardCANFrame &frame) = 0;
     virtual void update_rx() = 0;
 
-private:
+protected:
     CanardIface &canard_iface;
 };
 

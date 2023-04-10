@@ -90,14 +90,14 @@ MCU  = cortex-m7
 
 # Imported source files and paths.
 CHIBIOS  := $(SRCDIR)/modules/ChibiOS
-CONFDIR  := $(SRCDIR)/cfg
+CONFDIR  := $(SRCDIR)/cfg_$(PLATFORM)
 BUILDDIR := $(BUILDDIR)
 DEPDIR   := $(BUILDDIR)/.dep
 
 # Licensing files.
 include $(CHIBIOS)/os/license/license.mk
 # Startup files.
-include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_stm32h7xx_m4.mk
+include $(CHIBIOS)/os/common/startup/ARMCMx/compilers/GCC/mk/startup_$(PLATFORM).mk
 # HAL-OSAL files (optional).
 include $(CHIBIOS)/os/hal/hal.mk
 include $(CHIBIOS)/os/hal/ports/STM32/STM32H7xx/platform.mk
@@ -109,7 +109,7 @@ include $(CHIBIOS)/os/common/ports/ARMv7-M/compilers/GCC/mk/port.mk
 include $(CHIBIOS)/tools/mk/autobuild.mk
 
 # Define linker script file here
-LDSCRIPT= $(CONFDIR)/stm32h757_m4.ld
+LDSCRIPT= $(CONFDIR)/linker.ld
 
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -144,7 +144,7 @@ CPPWARN = -Wall -Wextra -Wundef
 #
 
 # List all user C define here, like -D_DEBUG=1
-UDEFS = -DCORE_CM4
+UDEFS =
 
 # Define ASM defines here
 UADEFS =
@@ -172,12 +172,12 @@ include $(RULESPATH)/rules.mk
 
 # generate a list of include directories and put it in a file
 INCDIRLIST = $(foreach dir,$(INCDIR),-I$(dir))
-$(shell echo $(INCDIRLIST) > $(BUILDDIR)/incdirlist.txt)
+$(shell echo $(INCDIRLIST) > $(BUILDDIR)/incdirlist_$(PLATFORM).txt)
 
 # also dump CFLAGS and LDFLAGS to a file
-$(shell echo $(CPPFLAGS) > $(BUILDDIR)/cxxflags.txt)
-$(shell echo $(CFLAGS) > $(BUILDDIR)/cflags.txt)
-$(shell echo $(LDFLAGS) > $(BUILDDIR)/ldflags.txt)
+$(shell echo $(CPPFLAGS) > $(BUILDDIR)/cxxflags_$(PLATFORM).txt)
+$(shell echo $(CFLAGS) > $(BUILDDIR)/cflags_$(PLATFORM).txt)
+$(shell echo $(LDFLAGS) > $(BUILDDIR)/ldflags_$(PLATFORM).txt)
 
 
 #

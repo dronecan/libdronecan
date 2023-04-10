@@ -59,5 +59,7 @@ bool CanardIface::shouldAcceptTransfer(const CanardInstance* ins,
                                            CanardTransferType transfer_type,
                                            uint8_t source_node_id) {
     CanardIface* iface = (CanardIface*) ins->user_reference;
+    (void) transfer_type;
+    (void) source_node_id;
     return iface->accept_message(data_type_id, *out_data_type_signature);
 }

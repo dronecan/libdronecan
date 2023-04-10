@@ -1,26 +1,28 @@
 #include "ShMemIface.h"
 #include <hal.h>
+#include <string.h>
+#include "helpers.h"
 
 using namespace CubeFramework;
 
-thread_t ShMemIface::thread_rx;
-
 void sem_free_it();
+
+extern uint32_t __shared_mem_base__, __shared_mem_end__;
 
 void ShMemIface::init() {
     const size_t shared_mem_size = __shared_mem_end__ - __shared_mem_base__;
 
 #if defined(CORE_CM7)
     // use first half of shared memory for rx
-    rx_buf = __shared_mem_base__;
-    memset(rx_buf, 0, sizeof(Buffer));
-    rx_buf->buffer = __shared_mem_base__ + sizeof(Buffer);
+    rx_buf = (Buffer*)__shared_mem_base__;
+    rx_buf->reset();
+    rx_buf->buffer = (uint8_t*)(__shared_mem_base__ + sizeof(Buffer));
     rx_buf->size = (shared_mem_size/2) - sizeof(Buffer);
 
     // use second half of shared memory for tx
-    tx_buf = __shared_mem_base__ + (shared_mem_size/2);
-    memset(tx_buf, 0, sizeof(Buffer));
-    tx_buf->buffer = __shared_mem_base__ + (shared_mem_size/2) + sizeof(Buffer);
+    tx_buf = (Buffer*)(__shared_mem_base__ + (shared_mem_size/2));
+    tx_buf->reset();
+    tx_buf->buffer = (uint8_t*)(__shared_mem_base__ + (shared_mem_size/2) + sizeof(Buffer));
     tx_buf->size = (shared_mem_size/2) - sizeof(Buffer);
 
     // enable HSEM
@@ -29,15 +31,15 @@ void ShMemIface::init() {
     nvicEnableVector(HSEM1_IRQn, CORTEX_MAX_KERNEL_PRIORITY);
 #else
     // use first half of shared memory for tx
-    tx_buf = __shared_mem_base__;
-    memset(tx_buf, 0, sizeof(Buffer));
-    tx_buf->buffer = __shared_mem_base__ + sizeof(Buffer);
+    tx_buf = (Buffer*)__shared_mem_base__;
+    tx_buf->reset();
+    tx_buf->buffer = (uint8_t*)(__shared_mem_base__ + sizeof(Buffer));
     tx_buf->size = (shared_mem_size/2) - sizeof(Buffer);
 
     // use second half of shared memory for rx
-    rx_buf = __shared_mem_base__ + (shared_mem_size/2);
-    memset(rx_buf, 0, sizeof(Buffer));
-    rx_buf->buffer = __shared_mem_base__ + (shared_mem_size/2) + sizeof(Buffer);
+    rx_buf = (Buffer*)(__shared_mem_base__ + (shared_mem_size/2));
+    rx_buf->reset();
+    rx_buf->buffer = (uint8_t*)(__shared_mem_base__ + (shared_mem_size/2) + sizeof(Buffer));
     rx_buf->size = (shared_mem_size/2) - sizeof(Buffer);
 
     // enable HSEM
@@ -55,27 +57,27 @@ void ShMemIface::rx_thread_trampoline(void *arg) {
     self->update_rx();
 }
 
-bool ShMemIface::send(const CanardCANFrame &transfer) {
+bool ShMemIface::send(const CanardCANFrame &frame) {
     return tx_buf->push(frame);
 }
 
 void ShMemIface::signalI()
 {
     chSysLockFromISR();
-    ch_evt_src_.broadcastFlagsI(0x1);
+    _evt_src.broadcastFlagsI(0x1);
     chSysUnlockFromISR();
 }
 
 void ShMemIface::update_rx() {
     CanardCANFrame frame;
     chibios_rt::EventListener evt_listener;
-    ch_evt_src_.registerMask(&evt_listener, 0x1);
+    _evt_src.registerMask(&evt_listener, 0x1);
 
     while (true) {
         // wait for semaphore
         chEvtWaitAnyTimeout(0x1, TIME_INFINITE);
         while (rx_buf->pop(frame)) {
-            canard_iface.handle_frame(frame);
+            canard_iface.handle_frame(frame, micros64());
         }
     }
 }
@@ -122,7 +124,7 @@ void ShMemIface::Buffer::pushbyte(uint8_t byte) {
 
 bool ShMemIface::Buffer::push(const CanardCANFrame &frame) {
     WITH_SEMAPHORE();
-    if (txspace() > (frame.data_len + FRAME_SIZE_WITHOUT_DATA)) {
+    if (txspace() > (size_t)(frame.data_len + FRAME_SIZE_WITHOUT_DATA)) {
         // buffer is full
         return false;
     }
@@ -140,9 +142,10 @@ bool ShMemIface::Buffer::push(const CanardCANFrame &frame) {
     for (size_t i = 0; i < frame.data_len; i++) {
         pushbyte(frame.data[i]);
     }
+    return true;
 }
 
-uint8_t ShMemIface::Buffer::peekbyte(uint8_t byte) {
+uint8_t ShMemIface::Buffer::peekbyte(size_t byte) {
     if (tail + byte >= size) {
         return buffer[tail + byte - size];
     } else {

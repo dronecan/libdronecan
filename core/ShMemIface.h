@@ -1,7 +1,7 @@
 #pragma once
 
 #include "DataIface.h"
-
+#include <ch.hpp>
 namespace CubeFramework
 {
 
@@ -20,23 +20,26 @@ public:
 
     void init();
 
-    bool send(const Canard::Transfer &transfer) override;
+    bool send(const CanardCANFrame &frame) override;
     void update_rx() override;
-    static void rx_thread_trampoline(void *arg);
     static ShMemIface* get_singleton() { return _singleton; }
 private:
     void signalI();
 
     // ring buffer
     class Buffer {
+        friend class ShMemIface;
     public:
         Buffer(uint8_t *buffer, size_t size) : buffer(buffer), size(size) {}
-
+        void reset() {
+            head = 0;
+            tail = 0;
+        }
         bool push(const CanardCANFrame &frame);
         bool pop(CanardCANFrame &frame);
     private:
         size_t available() const;
-        bool peekbyte(size_t size);
+        uint8_t peekbyte(size_t size);
         void pushbyte(uint8_t byte);
         void advance(size_t bytes);
         size_t txspace() const;
@@ -54,9 +57,10 @@ private:
 
     uint8_t rx_thread_wa[512];
     thread_t *rx_thread;
-    static ShMemIface *_singleton;
-
     chibios_rt::EventSource _evt_src;
+
+    static void rx_thread_trampoline(void *arg);
+    static ShMemIface *_singleton;
 };
 
 } // namespace CubeFramework

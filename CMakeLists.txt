@@ -2,16 +2,7 @@ cmake_minimum_required (VERSION 3.5)
 project(CubeFramework)
 
 # set cross compilation
-set(CMAKE_SYSTEM_NAME Generic)
-set(CMAKE_SYSTEM_PROCESSOR arm)
-set(CMAKE_C_COMPILER arm-none-eabi-gcc)
-set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
-set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)
-set(CMAKE_OBJCOPY arm-none-eabi-objcopy)
-set(CMAKE_OBJDUMP arm-none-eabi-objdump)
-set(CMAKE_SIZE arm-none-eabi-size)
-set(CMAKE_AR arm-none-eabi-ar)
-set(CMAKE_RANLIB arm-none-eabi-ranlib)
+include(arm-gcc-toolchain.cmake)
 
 
 set(INTERFACE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/interface)
@@ -43,19 +34,12 @@ list(APPEND SRC_FILES ${LIBCANARD_SOURCES})
 file(GLOB DSDL_GENERATED_SOURCES ${CMAKE_CURRENT_BINARY_DIR}/dsdlc_generated/src/*.c*)
 
 # append DSDL_GENERATED_SOURCES_C to SRC_FILES
-list(APPEND SRC_FILES ${DSDL_GENERATED_SOURCES})
+list(APPEND C_SRC_FILES ${DSDL_GENERATED_SOURCES})
 
 # add_subdirectory(${MODULES_DIR}/googletest)
 
 # disable GMOCK
 # set(BUILD_GMOCK OFF BOOL FORCE)
-
-# dry run chibios.mk to generate incdirlist.txt
-execute_process(COMMAND make -f ${CMAKE_CURRENT_SOURCE_DIR}/chibios.mk -n lib
-                PROJECT=chibios
-                SRCDIR=${CMAKE_CURRENT_SOURCE_DIR}
-                BUILDDIR=${CMAKE_CURRENT_BINARY_DIR}
-)
 
 # make a function to convert a file to a list
 function(file_to_list filename listname)
@@ -65,42 +49,88 @@ function(file_to_list filename listname)
     set(${listname} ${${listname}} PARENT_SCOPE)
 endfunction()
 
-# read incdirlist.txt to get chibios include directories
-file_to_list(${CMAKE_CURRENT_BINARY_DIR}/incdirlist.txt CHIBIOS_INCLUDE_DIRS)
-#replace space with ;
-string(REPLACE " " ";" CHIBIOS_INCLUDE_DIRS "${CHIBIOS_INCLUDE_DIRS}")
-# add chibios include directories
-include_directories(${CHIBIOS_INCLUDE_DIRS})
+function(add_chibios_build platform project)
+    execute_process(COMMAND make -f ${CMAKE_CURRENT_SOURCE_DIR}/chibios.mk -n lib
+        PROJECT=chibios_${platform}
+        SRCDIR=${CMAKE_CURRENT_SOURCE_DIR}
+        BUILDDIR=${CMAKE_CURRENT_BINARY_DIR}
+        PLATFORM=${platform}
+        OUTPUT_QUIET
+    )
+    # read incdirlist.txt to get chibios include directories
+    file_to_list(${CMAKE_CURRENT_BINARY_DIR}/incdirlist_${platform}.txt CHIBIOS_INCLUDE_DIRS)
+    #replace space with ;
+    string(REPLACE " " ";" CHIBIOS_INCLUDE_DIRS "${CHIBIOS_INCLUDE_DIRS}")
 
-set(CHIBIOS_EXTRA_FLAGS "-mno-thumb-interwork -mthumb --specs=nano.specs --specs=nosys.specs")
+    # read cxxflags_${platform}.txt to get chibios cxxflags
+    file_to_list(${CMAKE_CURRENT_BINARY_DIR}/cxxflags_${platform}.txt CHIBIOS_CXXFLAGS)
 
-# convert CHIBIOS_CXXFLAGS to list
-file_to_list(${CMAKE_CURRENT_BINARY_DIR}/cxxflags.txt CHIBIOS_CXXFLAGS)
-set(CHIBIOS_CXXFLAGS "${CHIBIOS_CXXFLAGS} ${CHIBIOS_EXTRA_FLAGS}")
+    # read cflags_${platform}.txt to get chibios cflags
+    file_to_list(${CMAKE_CURRENT_BINARY_DIR}/cflags_${platform}.txt CHIBIOS_CFLAGS)
 
-# convert CHIBIOS_CFLAGS to list
-file_to_list(${CMAKE_CURRENT_BINARY_DIR}/cflags.txt CHIBIOS_CFLAGS)
+    # read ldflags_${platform}.txt to get chibios ldflags
+    file_to_list(${CMAKE_CURRENT_BINARY_DIR}/ldflags_${platform}.txt CHIBIOS_LDFLAGS)
 
-# convert CHIBIOS_LDFLAGS to list
-file_to_list(${CMAKE_CURRENT_BINARY_DIR}/ldflags.txt CHIBIOS_LDFLAGS)
-set(CHIBIOS_LDFLAGS "${CHIBIOS_LDFLAGS} ${CHIBIOS_EXTRA_FLAGS}")
+    # check if platform contains m4
+    string(FIND ${platform} "m4" M4_FOUND)
+    if(${M4_FOUND} GREATER -1)
+        set(UDEFS "-DCORE_CM4")
+    else()
+        set(UDEFS "-DCORE_CM7")
+    endif()
 
-# define CORE_CM4
-add_definitions(-DCORE_CM4)
+    # add chibios library target
+    add_custom_command(OUTPUT ${platform}/libchibios_${platform}.a ${platform}/obj
+                       COMMAND make -f ${CMAKE_CURRENT_SOURCE_DIR}/chibios.mk lib
+                       PROJECT=chibios_${platform}
+                       SRCDIR=${CMAKE_CURRENT_SOURCE_DIR}
+                       BUILDDIR=${CMAKE_CURRENT_BINARY_DIR}/${platform}
+                       PLATFORM=${platform}
+                       UDEFS=${UDEFS}
+    )
+    add_custom_target(chibios_${platform} DEPENDS ${platform}/libchibios_${platform}.a)
 
-# call chibios.mk to build chibios library
-add_custom_command(OUTPUT libchibios.a obj/
-                   COMMAND make -f ${CMAKE_CURRENT_SOURCE_DIR}/chibios.mk lib
-                   PROJECT=chibios
-                   SRCDIR=${CMAKE_CURRENT_SOURCE_DIR}
-                   BUILDDIR=${CMAKE_CURRENT_BINARY_DIR}
-)
-add_custom_target(chibios DEPENDS libchibios.a)
+    # add all sources under project directory
+    file(GLOB PROJECT_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/${project}/*.cpp)
+    # add all files under core directory
+    file(GLOB CORE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/core/*.cpp)
+    list(APPEND CPP_SOURCES ${PROJECT_SOURCES} ${CORE_SOURCES})
+    # set CXX flags for CPP_SOURCES
+    set_source_files_properties(${CPP_SOURCES} PROPERTIES COMPILE_FLAGS ${CHIBIOS_CXXFLAGS})
+    # set C flags for C_SRC_FILES
+    set_source_files_properties(${C_SRC_FILES} PROPERTIES COMPILE_FLAGS ${CHIBIOS_CFLAGS})
+    # create executable
+    add_executable(${project}_${platform} ${CPP_SOURCES} ${C_SRC_FILES})
+    add_dependencies(${project}_${platform} chibios_${platform})
+    # add chibios library to link
+    target_link_libraries(${project}_${platform} ${CMAKE_CURRENT_BINARY_DIR}/${platform}/libchibios_${platform}.a)
+    # add chibios include directories
+    target_include_directories(${project}_${platform} PUBLIC ${CHIBIOS_INCLUDE_DIRS})
+    # also add cpp wrapper include directory
+    target_include_directories(${project}_${platform} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/modules/ChibiOS/os/various/cpp_wrappers)
+    if(${M4_FOUND} GREATER -1)
+        set_target_properties(${project}_${platform} PROPERTIES COMPILE_DEFINITIONS "CORE_CM4")
+    else()
+        set_target_properties(${project}_${platform} PROPERTIES COMPILE_DEFINITIONS "CORE_CM7")
+    endif()
+    set_target_properties(${project}_${platform} PROPERTIES LINK_FLAGS "${CHIBIOS_LDFLAGS}")
+    # generate hex file
+    add_custom_command(TARGET ${project}_${platform} POST_BUILD
+        COMMAND ${CMAKE_OBJCOPY} -O ihex ${project}_${platform} ${project}_${platform}.hex
+        COMMAND ${CMAKE_OBJCOPY} -O binary ${project}_${platform} ${project}_${platform}.bin
+    )
+    add_custom_target(${project}_${platform}_hex ALL DEPENDS ${project}_${platform})
+    # show size
+    add_custom_command(TARGET ${project}_${platform} POST_BUILD
+        COMMAND ${CMAKE_SIZE_UTIL} -B ${project}_${platform}
+    )
+endfunction()
 
-# add target shared_mem executable depending on libchibios.a
-add_executable(shared_mem ${CMAKE_CURRENT_SOURCE_DIR}/shared_mem/main.cpp)
-add_dependencies(shared_mem chibios)
-set_target_properties(shared_mem PROPERTIES LINK_FLAGS "${CHIBIOS_LDFLAGS}")
-set_target_properties(shared_mem PROPERTIES COMPILE_FLAGS "${CHIBIOS_CXXFLAGS}")
-# add chibios library to link
-target_link_libraries(shared_mem ${CMAKE_CURRENT_BINARY_DIR}/libchibios.a)
+# set compile options
+set(CMAKE_CXX_FLAGS "-mno-thumb-interwork -mthumb --specs=nano.specs --specs=nosys.specs")
+set(CMAKE_C_FLAGS "-mno-thumb-interwork -mthumb --specs=nano.specs --specs=nosys.specs")
+set(CMAKE_EXE_LINKER_FLAGS_INIT "-mno-thumb-interwork -mthumb --specs=nano.specs --specs=nosys.specs")
+
+# add shared_mem project
+add_chibios_build(stm32h7xx shared_mem)
+add_chibios_build(stm32h7xx_m4 shared_mem)

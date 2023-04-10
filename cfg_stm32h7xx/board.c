@@ -50,7 +50,7 @@
 void __early_init(void) {
   stm32_clock_init();
   // set first 16 bits of BOOT address
-  if (FLASH->BOOT4_CUR & 0xFFFF0000 != 0x081F) {
+  if ((FLASH->BOOT4_CUR & 0xFFFF0000) != 0x081F) {
     FLASH->BOOT4_PRG = (FLASH->BOOT4_CUR & 0xFFFF0000) | 0x081F;
     // enable CM4 boot as well, most likely its already enabled
     FLASH->OPTSR_PRG |= FLASH_OPTSR_BCM4;
