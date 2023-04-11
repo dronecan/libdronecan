@@ -13,5 +13,15 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
+# create a list of files to process
+files=""
+for arg in "$@"; do
+    if [ -d "$arg" ]; then
+        files="$files $(find $arg -name '*.cpp' -o -name '*.h' -o -name '*.c')"
+    elif [ -f "$arg" ]; then
+        files=$arg
+    fi
+done
+echo "Processing files: $files"
 # run astyle with astylerc config file
-astyle --options=astylerc $@
+astyle --options=astylerc $files

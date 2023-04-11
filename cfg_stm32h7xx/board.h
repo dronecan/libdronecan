@@ -50,7 +50,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-  void boardInit(void);
+void boardInit(void);
 #ifdef __cplusplus
 }
 #endif

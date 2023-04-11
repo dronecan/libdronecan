@@ -47,29 +47,32 @@
  * @details GPIO ports and system clocks are initialized before everything
  *          else.
  */
-void __early_init(void) {
-  stm32_clock_init();
+void __early_init(void)
+{
+    stm32_clock_init();
 }
 
 #if HAL_USE_SDC || defined(__DOXYGEN__)
 /**
  * @brief   SDC card detection.
  */
-bool sdc_lld_is_card_inserted(SDCDriver *sdcp) {
+bool sdc_lld_is_card_inserted(SDCDriver *sdcp)
+{
 
-  (void)sdcp;
-  /* CHTODO: Fill the implementation.*/
-  return true;
+    (void)sdcp;
+    /* CHTODO: Fill the implementation.*/
+    return true;
 }
 
 /**
  * @brief   SDC card write protection detection.
  */
-bool sdc_lld_is_write_protected(SDCDriver *sdcp) {
+bool sdc_lld_is_write_protected(SDCDriver *sdcp)
+{
 
-  (void)sdcp;
-  /* CHTODO: Fill the implementation.*/
-  return false;
+    (void)sdcp;
+    /* CHTODO: Fill the implementation.*/
+    return false;
 }
 #endif /* HAL_USE_SDC */
 
@@ -77,21 +80,23 @@ bool sdc_lld_is_write_protected(SDCDriver *sdcp) {
 /**
  * @brief   MMC_SPI card detection.
  */
-bool mmc_lld_is_card_inserted(MMCDriver *mmcp) {
+bool mmc_lld_is_card_inserted(MMCDriver *mmcp)
+{
 
-  (void)mmcp;
-  /* CHTODO: Fill the implementation.*/
-  return true;
+    (void)mmcp;
+    /* CHTODO: Fill the implementation.*/
+    return true;
 }
 
 /**
  * @brief   MMC_SPI card write protection detection.
  */
-bool mmc_lld_is_write_protected(MMCDriver *mmcp) {
+bool mmc_lld_is_write_protected(MMCDriver *mmcp)
+{
 
-  (void)mmcp;
-  /* CHTODO: Fill the implementation.*/
-  return false;
+    (void)mmcp;
+    /* CHTODO: Fill the implementation.*/
+    return false;
 }
 #endif
 
@@ -99,6 +104,7 @@ bool mmc_lld_is_write_protected(MMCDriver *mmcp) {
  * @brief   Board-specific initialization code.
  * @note    You can add your board-specific code here.
  */
-void boardInit(void) {
+void boardInit(void)
+{
 
 }
