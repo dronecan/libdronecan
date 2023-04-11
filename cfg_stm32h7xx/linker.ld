@@ -39,12 +39,13 @@ MEMORY
     flash7 (rx) : org = 0x00000000, len = 0
     ram0   (wx) : org = 0x24000000, len = 512k      /* AXI SRAM */
     ram1   (wx) : org = 0x30000000, len = 256k      /* AHB SRAM1+SRAM2 */
-    ram2   (wx) : org = 0x30000000, len = 288k      /* AHB SRAM1+SRAM2+SRAM3 */
-    ram3   (wx) : org = 0x30040000, len = 32k       /* AHB SRAM3 */
-    ram4   (wx) : org = 0x38000000, len = 64k       /* AHB SRAM4 */
-    ram5   (wx) : org = 0x20000000, len = 128k      /* DTCM-RAM */
-    ram6   (wx) : org = 0x00000000, len = 64k       /* ITCM-RAM */
-    ram7   (wx) : org = 0x38800000, len = 4k        /* BCKP SRAM */
+    ram2   (wx) : org = 0x30020000, len = 16k        /* Shared Memory */
+    ram3   (wx) : org = 0x30024000, len = 128k - 16k /* AHB SRAM1 */
+    ram4   (wx) : org = 0x30040000, len = 32k       /* AHB SRAM3 */
+    ram5   (wx) : org = 0x38000000, len = 64k       /* AHB SRAM4 */
+    ram6   (wx) : org = 0x20000000, len = 128k      /* DTCM-RAM */
+    ram7   (wx) : org = 0x00000000, len = 64k       /* ITCM-RAM */
+    ram8   (wx) : org = 0x38800000, len = 4k        /* BCKP SRAM */
 }
 
 /* For each data/text section two region are defined, a virtual region
@@ -118,16 +119,9 @@ SECTIONS
         __nocache_end__ = .;
     } > NOCACHE_RAM
 
-    /* Special section for Ethernet DMA non cache-able areas.*/
-    .eth (NOLOAD) : ALIGN(4)
-    {
-        __eth_base__ = .;
-        *(.eth)
-        *(.eth.*)
-        *(.bss.__eth_*)
-        . = ALIGN(4);
-        __eth_end__ = .;
-    } > ETH_RAM
+    __shared_mem_base__ = ORIGIN(ram2);
+    __shared_mem_size__ = LENGTH(ram2);
+    __shared_mem_end__  = __shared_mem_base__ + __shared_mem_size__;
 }
 
 /* Code rules inclusion.*/

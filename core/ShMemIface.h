@@ -5,13 +5,14 @@
 namespace CubeFramework
 {
 
-class ShMemIface : public DataIface {
+class ShMemIface : public DataIface
+{
 public:
-    ShMemIface() = delete;
     ShMemIface(const ShMemIface&) = delete;
     ShMemIface& operator=(const ShMemIface&) = delete;
 
-    ShMemIface(CanardIface &canard_iface) : DataIface(canard_iface) {
+    ShMemIface()
+    {
         if (_singleton) {
             chSysHalt("ShMemIface already instantiated");
         }
@@ -22,16 +23,22 @@ public:
 
     bool send(const CanardCANFrame &frame) override;
     void update_rx() override;
-    static ShMemIface* get_singleton() { return _singleton; }
+    static ShMemIface* get_singleton()
+    {
+        return _singleton;
+    }
+    static chibios_rt::EventSource evt_src;
 private:
-    void signalI();
+    void signal_rx();
 
     // ring buffer
-    class Buffer {
+    class Buffer
+    {
         friend class ShMemIface;
     public:
         Buffer(uint8_t *buffer, size_t size) : buffer(buffer), size(size) {}
-        void reset() {
+        void reset()
+        {
             head = 0;
             tail = 0;
         }
@@ -49,15 +56,18 @@ private:
         size_t tail;
     } *rx_buf, *tx_buf;
 
-    class HWSemaphore {
+    class HWSemaphore
+    {
     public:
-        HWSemaphore();
+        HWSemaphore(uint8_t i);
         ~HWSemaphore();
+    private:
+        uint16_t unlock_key;
+        uint8_t sem_index;
     };
 
     uint8_t rx_thread_wa[512];
     thread_t *rx_thread;
-    chibios_rt::EventSource _evt_src;
 
     static void rx_thread_trampoline(void *arg);
     static ShMemIface *_singleton;

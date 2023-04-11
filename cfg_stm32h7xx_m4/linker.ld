@@ -41,8 +41,8 @@ MEMORY
     flash7 (rx) : org = 0x00000000, len = 0
     ram0   (wx) : org = 0x24000000, len = 512k      /* AXI SRAM */
     ram1   (wx) : org = 0x30000000, len = 256k      /* AHB SRAM1+SRAM2 */
-    ram2   (wx) : org = 0x30020000, len = 4k        /* Shared Memory */
-    ram3   (wx) : org = 0x30021000, len = 128k - 4k /* AHB SRAM1 */
+    ram2   (wx) : org = 0x30020000, len = 16k        /* Shared Memory */
+    ram3   (wx) : org = 0x30024000, len = 128k - 16k /* AHB SRAM1 */
     ram4   (wx) : org = 0x30040000, len = 32k       /* AHB SRAM3 */
     ram5   (wx) : org = 0x38000000, len = 64k       /* AHB SRAM4 */
     ram6   (wx) : org = 0x20000000, len = 128k      /* DTCM-RAM */
@@ -117,16 +117,10 @@ SECTIONS
         . = ALIGN(4);
         __nocache_end__ = .;
     } > NOCACHE_RAM
-    
-    .shared_mem (NOLOAD) : ALIGN(4)
-    {
-        __shared_mem_base__ = .;
-        *(.shared_mem)
-        *(.shared_mem.*)
-        *(.bss.__shared_mem_*)
-        . = ALIGN(4);
-        __shared_mem_end__ = .;
-    } > ram2
+
+    __shared_mem_base__ = ORIGIN(ram2);
+    __shared_mem_size__ = LENGTH(ram2);
+    __shared_mem_end__  = __shared_mem_base__ + __shared_mem_size__;
 }
 
 /* Code rules inclusion.*/

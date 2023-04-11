@@ -3,13 +3,15 @@
 #include <canard/interface.h>
 #include <canard.h>
 
-namespace CubeFramework {
+namespace CubeFramework
+{
 
-class CanardIface : public Canard::Interface {
+class CanardIface : public Canard::Interface
+{
 
 public:
     CanardIface(uint8_t index) :
-    Canard::Interface(index) {}
+        Canard::Interface(index) {}
 
     /// @brief delete copy constructor and assignment operator
     CanardIface(const CanardIface&) = delete;
@@ -46,7 +48,10 @@ public:
                                      CanardTransferType transfer_type,
                                      uint8_t source_node_id);
 
-    uint8_t get_node_id() const override { return canard.node_id; }
+    uint8_t get_node_id() const override
+    {
+        return canard.node_id;
+    }
 
 protected:
     CanardInstance canard {};

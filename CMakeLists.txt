@@ -71,6 +71,11 @@ function(add_chibios_build platform project)
     # read ldflags_${platform}.txt to get chibios ldflags
     file_to_list(${CMAKE_CURRENT_BINARY_DIR}/ldflags_${platform}.txt CHIBIOS_LDFLAGS)
 
+    # read srcfiles_${platform}.txt to get chibios source files
+    file_to_list(${CMAKE_CURRENT_BINARY_DIR}/srcfiles_${platform}.txt CHIBIOS_SRC_FILES)
+    # replace space with ;
+    string(REPLACE " " ";" CHIBIOS_SRC_FILES "${CHIBIOS_SRC_FILES}")
+
     # check if platform contains m4
     string(FIND ${platform} "m4" M4_FOUND)
     if(${M4_FOUND} GREATER -1)
@@ -87,6 +92,7 @@ function(add_chibios_build platform project)
                        BUILDDIR=${CMAKE_CURRENT_BINARY_DIR}/${platform}
                        PLATFORM=${platform}
                        UDEFS=${UDEFS}
+                       DEPENDS ${CHIBIOS_SRC_FILES} ${CMAKE_CURRENT_SOURCE_DIR}/chibios.mk
     )
     add_custom_target(chibios_${platform} DEPENDS ${platform}/libchibios_${platform}.a)
 
@@ -108,6 +114,7 @@ function(add_chibios_build platform project)
     target_include_directories(${project}_${platform} PUBLIC ${CHIBIOS_INCLUDE_DIRS})
     # also add cpp wrapper include directory
     target_include_directories(${project}_${platform} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/modules/ChibiOS/os/various/cpp_wrappers)
+
     if(${M4_FOUND} GREATER -1)
         set_target_properties(${project}_${platform} PROPERTIES COMPILE_DEFINITIONS "CORE_CM4")
     else()
@@ -132,5 +139,13 @@ set(CMAKE_C_FLAGS "-mno-thumb-interwork -mthumb --specs=nano.specs --specs=nosys
 set(CMAKE_EXE_LINKER_FLAGS_INIT "-mno-thumb-interwork -mthumb --specs=nano.specs --specs=nosys.specs")
 
 # add shared_mem project
-add_chibios_build(stm32h7xx shared_mem)
-add_chibios_build(stm32h7xx_m4 shared_mem)
+add_chibios_build(stm32h7xx shared_mem_test)
+add_chibios_build(stm32h7xx_m4 shared_mem_test)
+
+# combine hex files
+add_custom_command(OUTPUT shared_mem_test.hex
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/combine_hex.py ${CMAKE_CURRENT_BINARY_DIR}/shared_mem_test.hex ${CMAKE_CURRENT_BINARY_DIR}/shared_mem_test_stm32h7xx.hex ${CMAKE_CURRENT_BINARY_DIR}/shared_mem_test_stm32h7xx_m4.hex
+    DEPENDS shared_mem_test_stm32h7xx.hex shared_mem_test_stm32h7xx_m4.hex
+)
+add_custom_target(shared_mem_test ALL DEPENDS shared_mem_test.hex)
+add_dependencies(shared_mem_test shared_mem_test_stm32h7xx shared_mem_test_stm32h7xx_m4)

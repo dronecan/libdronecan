@@ -21,6 +21,7 @@
 
 #include "hal.h"
 #include "stm32_gpio.h"
+#include "usbcfg.h"
 
 /*===========================================================================*/
 /* Driver local definitions.                                                 */
@@ -51,10 +52,27 @@ void __early_init(void)
 {
     stm32_clock_init();
     // set first 16 bits of BOOT address
-    if ((FLASH->BOOT4_CUR & 0xFFFF0000) != 0x081F) {
-        FLASH->BOOT4_PRG = (FLASH->BOOT4_CUR & 0xFFFF0000) | 0x081F;
+    if ((FLASH->BOOT4_CUR & 0x081FLU) != 0x081FLU) {
+        //unlock flash
+        if (FLASH->OPTCR & FLASH_OPTCR_OPTLOCK) {
+            /* Unlock sequence */
+            FLASH->OPTKEYR = 0x08192A3B;
+            FLASH->OPTKEYR = 0x4C5D6E7F;
+        }
+        while (FLASH->OPTSR_CUR & FLASH_OPTSR_OPT_BUSY) {
+        }
+        FLASH->BOOT4_PRG = (FLASH->BOOT4_CUR & 0xFFFF0000LU) | 0x081FU;
         // enable CM4 boot as well, most likely its already enabled
         FLASH->OPTSR_PRG |= FLASH_OPTSR_BCM4;
+        // start programming
+        FLASH->OPTCR |= FLASH_OPTCR_OPTSTART;
+        // wait for completion by checking busy bit
+        while (FLASH->OPTSR_CUR & FLASH_OPTSR_OPT_BUSY) {
+        }
+        // lock flash
+        FLASH->OPTCR |= FLASH_OPTCR_OPTLOCK;
+        while (FLASH->OPTSR_CUR & FLASH_OPTSR_OPT_BUSY) {
+        }
         NVIC_SystemReset();
     }
 }

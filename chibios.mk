@@ -107,14 +107,19 @@ include $(CHIBIOS)/os/rt/rt.mk
 include $(CHIBIOS)/os/common/ports/ARMv7-M/compilers/GCC/mk/port.mk
 # Auto-build files in ./source recursively.
 include $(CHIBIOS)/tools/mk/autobuild.mk
+include $(CHIBIOS)/os/hal/lib/streams/streams.mk
+
 
 # Define linker script file here
 LDSCRIPT= $(CONFDIR)/linker.ld
 
+# find all the source files in the configure directory
+CONFSRC=$(wildcard $(CONFDIR)/*.c)
+
 # C sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
 CSRC = $(ALLCSRC) \
-       $(CONFDIR)/board.c
+       $(CONFSRC)
 
 # C++ sources that can be compiled in ARM or THUMB mode depending on the global
 # setting.
@@ -178,7 +183,8 @@ $(shell echo $(INCDIRLIST) > $(BUILDDIR)/incdirlist_$(PLATFORM).txt)
 $(shell echo $(CPPFLAGS) > $(BUILDDIR)/cxxflags_$(PLATFORM).txt)
 $(shell echo $(CFLAGS) > $(BUILDDIR)/cflags_$(PLATFORM).txt)
 $(shell echo $(LDFLAGS) > $(BUILDDIR)/ldflags_$(PLATFORM).txt)
-
+# dump source files to a file
+$(shell echo $(CSRC) $(CPPSRC) $(ASMSRC) $(ASMXSRC) > $(BUILDDIR)/srcfiles_$(PLATFORM).txt)
 
 #
 # Common rules

@@ -162,7 +162,7 @@
 #define STM32_SAI1SEL                       STM32_SAI1SEL_PLL1_Q_CK
 #define STM32_LPTIM1SEL                     STM32_LPTIM1SEL_PCLK1
 #define STM32_CECSEL                        STM32_CECSEL_LSE_CK
-#define STM32_USBSEL                        STM32_USBSEL_PLL1_Q_CK
+#define STM32_USBSEL                        STM32_USBSEL_PLL3_Q_CK
 #define STM32_I2C123SEL                     STM32_I2C123SEL_PCLK1
 #define STM32_RNGSEL                        STM32_RNGSEL_HSI48_CK
 #define STM32_USART16SEL                    STM32_USART16SEL_PCLK2
@@ -481,7 +481,7 @@
 /*
  * USB driver system settings.
  */
-#define STM32_USB_USE_OTG1                  FALSE
+#define STM32_USB_USE_OTG1                  TRUE
 #define STM32_USB_USE_OTG2                  FALSE
 #define STM32_USB_OTG1_IRQ_PRIORITY         14
 #define STM32_USB_OTG2_IRQ_PRIORITY         14

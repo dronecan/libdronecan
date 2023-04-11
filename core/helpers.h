@@ -1,6 +1,7 @@
 #include <stdint.h>
 
-namespace CubeFramework {
+namespace CubeFramework
+{
 
 uint32_t micros32();
 uint64_t micros64();
