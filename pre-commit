@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+# pre-commit hook to run astyle on all changed files
+# create list of .h , .c, .cpp files staged tracked or modified
+files=$(git status --porcelain | grep -E "^(M|A|MM|AM|MA|) " | grep -E "^(M|A|MM|AM|MA) " | grep -E "\.(h|c|cpp)$" | awk '{print $2}')
+
+echo "Checking Code style on files:"
+echo $files
+
+# dry run astyle on all files with astylerc config file, if astyle says Formatted, then raise an error
+if [ -n "$files" ]; then
+    # check if astyle is installed
+    if ! [ -x "$(command -v astyle)" ]; then
+        echo "Error: astyle is not installed." >&2
+        exit 1
+    fi
+    result=$(astyle --options=astylerc --dry-run $files | grep -E "^(Formatted|Error)")
+    if [[ $result == *"Error"* ]]; then
+        echo "Astyle failed $result"
+        exit 1
+    fi
+    # check result of astyle, does it say Formatted?
+    if [[ $result == *"Formatted"* ]]; then
+        echo "Astyle failed, please run astyle on these files:"
+        # strip out the "Formatted" from the result
+        echo $result | sed 's/Formatted //g'
+        exit 1
+    fi
+fi
