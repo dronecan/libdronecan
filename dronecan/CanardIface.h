@@ -3,7 +3,7 @@
 #include <canard/interface.h>
 #include <canard.h>
 
-namespace CubeFramework
+namespace DroneCAN
 {
 
 class CanardIface : public Canard::Interface
@@ -57,4 +57,4 @@ protected:
     CanardInstance canard {};
 };
 
-} // namespace CubeFramework
+} // namespace DroneCAN

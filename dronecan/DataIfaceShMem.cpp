@@ -3,14 +3,16 @@
 #include <string.h>
 #include "helpers.h"
 
-using namespace CubeFramework;
+using namespace DroneCAN;
 
 #ifdef CORE_CM7
 #define TX_HSEM_INDEX 0
 #define RX_HSEM_INDEX 1
+#define HSEM_CORE_ID  0x3
 #else
 #define TX_HSEM_INDEX 1
 #define RX_HSEM_INDEX 0
+#define HSEM_CORE_ID  0x1
 #endif
 
 void sem_free_it();
@@ -23,10 +25,15 @@ void ShMemIface::init()
 {
     volatile size_t shared_mem_size = uint32_t(&__shared_mem_end__) - uint32_t(&__shared_mem_base__);
 
+    // enable HSEM
+    rccEnableAHB4(RCC_AHB4ENR_HSEMEN, true);
+
 #if defined(CORE_CM7)
+    // enable HSEM1 interrupt
+    nvicEnableVector(HSEM1_IRQn, CORTEX_MAX_KERNEL_PRIORITY);
+
     // use first half of shared memory for rx
     rx_buf = (Buffer*)&__shared_mem_base__;
-    rx_buf->reset();
     rx_buf->buffer = (uint8_t*)(uint32_t(&__shared_mem_base__) + sizeof(Buffer));
     rx_buf->size = (shared_mem_size/2) - sizeof(Buffer);
 
@@ -36,12 +43,10 @@ void ShMemIface::init()
     tx_buf->buffer = (uint8_t*)(uint32_t(&__shared_mem_base__) + (shared_mem_size/2) + sizeof(Buffer));
     tx_buf->size = (shared_mem_size/2) - sizeof(Buffer);
     memset(tx_buf->buffer, 0, tx_buf->size);
-
-    // enable HSEM
-    rccEnableAHB4(RCC_AHB4ENR_HSEMEN, true);
-    // enable HSEM1 interrupt
-    nvicEnableVector(HSEM1_IRQn, CORTEX_MAX_KERNEL_PRIORITY);
 #else
+    // enable HSEM2 interrupt
+    NVIC_SetPriority(HSEM2_IRQn, CORTEX_MAX_KERNEL_PRIORITY);
+
     // use first half of shared memory for tx
     tx_buf = (Buffer*)&__shared_mem_base__;
     tx_buf->reset();
@@ -51,14 +56,8 @@ void ShMemIface::init()
 
     // use second half of shared memory for rx
     rx_buf = (Buffer*)(uint32_t(&__shared_mem_base__) + (shared_mem_size/2));
-    rx_buf->reset();
     rx_buf->buffer = (uint8_t*)(uint32_t(&__shared_mem_base__) + (shared_mem_size/2) + sizeof(Buffer));
     rx_buf->size = (shared_mem_size/2) - sizeof(Buffer);
-
-    // enable HSEM
-    rccEnableAHB4(RCC_AHB4ENR_HSEMEN, true);
-    // enable HSEM2 interrupt
-    NVIC_SetPriority(HSEM2_IRQn, CORTEX_MAX_KERNEL_PRIORITY);
 #endif
 
     // start rx thread
@@ -88,12 +87,15 @@ void ShMemIface::update_rx()
     CanardCANFrame frame;
     chibios_rt::EventListener evt_listener;
     evt_src.registerMask(&evt_listener, 1U << RX_HSEM_INDEX);
-    // set interrupt on RX_HSEM_INDEX
-    HSEM_COMMON->IER |= (1U << RX_HSEM_INDEX);
     while (true) {
+        // set interrupt on RX_HSEM_INDEX
+        HSEM_COMMON->IER |= (1U << RX_HSEM_INDEX);
         // wait for semaphore
         chEvtWaitAnyTimeout(1U << RX_HSEM_INDEX, TIME_INFINITE);
+        // disable interrupt on RX_HSEM_INDEX while we read the buffer
+        HSEM_COMMON->IER &= ~(1U << RX_HSEM_INDEX);
         while (rx_buf->pop(frame)) {
+            print("Got Frame[0x%02X, 0x%lX 0x%lX, %d]\n", frame.id, ((uint32_t*)frame.data)[0], frame.data_len);
             // canard_iface.handle_frame(frame, micros64());
         }
     }
@@ -121,7 +123,7 @@ ShMemIface::HWSemaphore::HWSemaphore(uint8_t i)
     chibios_rt::EventListener evt_listener;
     ShMemIface::evt_src.registerMask(&evt_listener, 1U << i);
     // try to get semaphore
-    while (!(hw_sem->RLR[i] & HSEM_RLR_LOCK)) {
+    while ((!(hw_sem->RLR[i] & HSEM_RLR_LOCK)) || ((hw_sem->RLR[i] >> 8) & 0xFF) != HSEM_CORE_ID) {
         // we don't hold the semaphore, sleep until its free
         chEvtWaitOne(1U << i);
     }
@@ -138,33 +140,24 @@ ShMemIface::HWSemaphore::HWSemaphore(uint8_t i)
 ShMemIface::HWSemaphore::~HWSemaphore()
 {
     HSEM->R[sem_index] = unlock_key;
+    // clear our interrupt
+    HSEM_COMMON->ICR |= (1U << sem_index);
 }
 
 size_t ShMemIface::Buffer::available() const
 {
-    if (head >= tail) {
-        return size - head + tail;
-    }
-    return tail - head;
+    return (head >= tail) ? (head - tail) : (size - tail + head);
 }
 
 void ShMemIface::Buffer::advance(size_t bytes)
 {
-    if (bytes > available()) {
-        // buffer is empty
-        return;
-    }
-    tail += bytes;
-    if (tail >= size) {
-        tail -= size;
-    }
+    tail = (bytes + tail) % size;
 }
 
 size_t ShMemIface::Buffer::txspace() const
 {
     return size - available();
 }
-
 
 void ShMemIface::Buffer::pushbyte(uint8_t byte)
 {
@@ -174,14 +167,22 @@ void ShMemIface::Buffer::pushbyte(uint8_t byte)
     }
 }
 
+// only done by transmitter
+void ShMemIface::Buffer::reset()
+{
+    WITH_SEMAPHORE(TX_HSEM_INDEX);
+    head = 0;
+    tail = 0;
+}
+
 bool ShMemIface::Buffer::push(const CanardCANFrame &frame)
 {
     WITH_SEMAPHORE(TX_HSEM_INDEX);
-    if (txspace() > (size_t)(frame.data_len + FRAME_SIZE_WITHOUT_DATA)) {
+    if (txspace() < (size_t)(frame.data_len + FRAME_SIZE_WITHOUT_DATA)) {
         // buffer is full
         return false;
     }
-    // push 32 bit header
+    // push 16 bit header
     pushbyte(FRAME_HEADER1);
     pushbyte(FRAME_HEADER2);
     // place 32 bit ID
@@ -200,11 +201,7 @@ bool ShMemIface::Buffer::push(const CanardCANFrame &frame)
 
 uint8_t ShMemIface::Buffer::peekbyte(size_t byte)
 {
-    if (tail + byte >= size) {
-        return buffer[tail + byte - size];
-    } else {
-        return buffer[tail + byte];
-    }
+    return buffer[(tail + byte) % size];
 }
 
 bool ShMemIface::Buffer::pop(CanardCANFrame &frame)
@@ -240,8 +237,8 @@ bool ShMemIface::Buffer::pop(CanardCANFrame &frame)
 void sem_free_it()
 {
     // send events to all listeners
-    ShMemIface::evt_src.broadcastFlags(HSEM_COMMON->ISR);
-    // clear interrupt flags
+    ShMemIface::evt_src.broadcastFlagsI(HSEM_COMMON->ISR);
+    // clear all interrupt flags
     HSEM_COMMON->ICR = HSEM_COMMON->ISR;
 }
 

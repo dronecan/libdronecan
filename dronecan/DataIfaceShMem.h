@@ -2,7 +2,7 @@
 
 #include "DataIface.h"
 #include <ch.hpp>
-namespace CubeFramework
+namespace DroneCAN
 {
 
 class ShMemIface : public DataIface
@@ -37,14 +37,12 @@ private:
         friend class ShMemIface;
     public:
         Buffer(uint8_t *buffer, size_t size) : buffer(buffer), size(size) {}
-        void reset()
-        {
-            head = 0;
-            tail = 0;
-        }
+        void reset();
         bool push(const CanardCANFrame &frame);
         bool pop(CanardCANFrame &frame);
     private:
+        // these are not thread safe
+        // use only after taking semaphore
         size_t available() const;
         uint8_t peekbyte(size_t size);
         void pushbyte(uint8_t byte);
@@ -73,4 +71,4 @@ private:
     static ShMemIface *_singleton;
 };
 
-} // namespace CubeFramework
+} // namespace DroneCAN

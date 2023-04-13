@@ -2,14 +2,14 @@
 #include "helpers.h"
 
 
-uint32_t CubeFramework::micros32()
+uint32_t DroneCAN::micros32()
 {
     systime_t time = chVTGetSystemTimeX();
     time *= 1000000/CH_CFG_ST_FREQUENCY;
     return time;
 }
 
-uint64_t CubeFramework::micros64()
+uint64_t DroneCAN::micros64()
 {
     static uint32_t last_time = 0;
     static uint32_t overflow_count = 0;

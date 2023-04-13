@@ -1,6 +1,6 @@
 #include "CanardIface.h"
 
-using namespace CubeFramework;
+using namespace DroneCAN;
 using namespace Canard;
 
 void CanardIface::init(void* mem_arena, size_t mem_arena_size)

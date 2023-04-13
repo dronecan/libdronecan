@@ -2,7 +2,7 @@
 
 #include "CanardIface.h"
 
-namespace CubeFramework
+namespace DroneCAN
 {
 
 // DataIface to CanardIface
@@ -14,4 +14,4 @@ public:
     virtual void update_rx() = 0;
 };
 
-} // namespace CubeFramework
+} // namespace DroneCAN
