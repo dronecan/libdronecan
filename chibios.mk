@@ -89,7 +89,6 @@ PROJECT = ch
 MCU  = cortex-m7
 
 # Imported source files and paths.
-CHIBIOS  := $(SRCDIR)/modules/ChibiOS
 CONFDIR  := $(SRCDIR)/cfg_$(PLATFORM)
 BUILDDIR := $(BUILDDIR)
 DEPDIR   := $(BUILDDIR)/.dep
