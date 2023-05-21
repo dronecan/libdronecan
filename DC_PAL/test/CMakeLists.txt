@@ -54,6 +54,6 @@ function(create_test_executable test_name)
     )
 endfunction()
 
-# create_test_executable(test_callback)
 create_test_executable(test_list)
 create_test_executable(test_threads)
+create_test_executable(test_worker)
