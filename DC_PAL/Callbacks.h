@@ -80,23 +80,40 @@ public:
 };
 
 template <typename func, typename ...Args>
-class CallbackFunc : public Callback<Args...>
+class StaticCallbackFunc : public Callback<Args...>
 {
     func cb;
 public:
     /// @brief constructor
     /// @param _cb callback function
-    CallbackFunc(func _cb) : cb(_cb) {}
+    StaticCallbackFunc(func _cb) : cb(_cb) {}
 
     void operator()(Args...args) override
     {
-        return cb(args...);
+        cb(args...);
     }
 
-    // overload cast operator to func
     operator func()
     {
         return cb;
+    }
+};
+
+template <typename type, typename func, typename ...Args>
+class ObjCallbackFunc : public Callback<Args...>
+{
+    type *obj;
+    func cb;
+public:
+    /// @brief constructor
+    /// @param _cb callback function
+    ObjCallbackFunc(type *_obj, func _cb) : obj(_obj), cb(_cb) {}
+
+    void operator()(Args...args) override
+    {
+        if (obj != nullptr) {
+            (obj->*cb)(args...);
+        }
     }
 };
 

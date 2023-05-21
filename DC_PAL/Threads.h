@@ -26,6 +26,13 @@ namespace dronecan
 typedef uint32_t event_mask_t;
 typedef int8_t event_t;
 
+// Events list to event mask conversion
+template <typename ... Args>
+constexpr event_mask_t events(Args... args)
+{
+    return ((1 << args) | ...);
+}
+
 class Thread : public List<Thread>
 {
 public:
@@ -33,8 +40,13 @@ public:
     virtual void signal(dronecan::event_mask_t event_mask) = 0;
     virtual dronecan::event_t register_evt() = 0;
     virtual void unregister_evt(int8_t id) = 0;
-    virtual bool wait_any(dronecan::event_mask_t events, uint32_t timeout_us) = 0;
+    virtual bool wait_any(dronecan::event_mask_t &events, uint32_t timeout_us) = 0;
     virtual bool wait_all(dronecan::event_mask_t events, uint32_t timeout_us) = 0;
+    virtual bool set_priority(int priority)
+    {
+        return true;
+    }
+    virtual dronecan::event_mask_t get_registered_events() const = 0;
 };
 
 class Threads
@@ -52,7 +64,12 @@ public:
 
     virtual Thread* start(ThreadFunc &thread_func, const char *name, size_t stack_size, int priority) = 0;
     virtual Thread* current() = 0;
-    virtual bool wait(uint32_t evt_mask, uint32_t timeout_us) = 0;
+    virtual bool wait_all(dronecan::event_mask_t evt_mask, uint32_t timeout_us) = 0;
+    virtual bool wait_any(dronecan::event_mask_t &evt_mask, uint32_t timeout_us) = 0;
+    virtual bool wait(uint32_t timeout_us)
+    {
+        return wait_all(0, timeout_us);
+    }
     virtual void stop(Thread* thread) = 0;
     virtual Thread* register_main_thread()
     {

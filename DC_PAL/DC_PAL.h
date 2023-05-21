@@ -17,6 +17,9 @@ limitations under the License.
 
 #include "Defines.h"
 #include "DC_PAL_Abstract.h"
+#include "Threads.h"
+#include "Semaphore.h"
+#include "Worker.h"
 
 #if defined(CHIBIOS_BUILD)
 #include <DC_PAL_ChibiOS/DC_PAL_ChibiOS.h>

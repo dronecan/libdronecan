@@ -55,6 +55,10 @@ public:
     void remove(T &obj)
     {
         WITH_SEMAPHORE(sem);
+        if (head == nullptr) {
+            // nothing to remove
+            return;
+        }
         if (head == &obj) {
             head = obj.next;
         } else {

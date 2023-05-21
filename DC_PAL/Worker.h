@@ -16,48 +16,147 @@ limitations under the License.
 #pragma once
 
 #include <stdint.h>
-#include <Callbacks.h>
+#include "Callbacks.h"
+#include "Threads.h"
+#include <iostream>
 
 namespace dronecan
 {
+using WorkerFunc = Callback<>;
 
-class WorkerObject
-{
-public:
-    WorkerObject(Callback<WorkerObject&> &cb) : cb(cb) {}
-    virtual bool init_periodic(uint32_t period_us) = 0;
-    virtual int8_t init_event() = 0;
-    virtual bool operator()()
-    {
-        return cb(*this);
-    }
-private:
-    Callback<WorkerObject&> cb;
-};
-
+class WorkerObject;
+class Worker;
 class Worker
 {
 public:
-    Worker(const char *name, size_t stack_size, int priority);
+    Worker() : thread_func(this, &Worker::run)
+    {}
 
-    bool register_cb(Callback<WorkerObject&> &cb)
+    ~Worker();
+
+    bool start(const char *name, size_t stack_size, int priority);
+
+    bool register_worker(WorkerObject *worker_obj);
+
+    void unregister_worker(WorkerObject *worker_obj);
+
+    void run();
+    bool is_running() const
     {
-        return worker_cbs.register_cb(cb);
+        return running;
     }
-    void unregister_cb(Callback<WorkerObject&> &cb)
+
+    event_t register_evt()
     {
-        worker_cbs.unregister_cb(cb);
+        return thread->register_evt();
     }
-    bool start();
-    void update();
-    bool add(WorkerObject &obj);
-    bool remove(WorkerObject &obj);
-    bool is_running() const;
+
+    void signal(dronecan::event_mask_t event_mask)
+    {
+        thread->signal(event_mask);
+    }
 
 private:
+    uint64_t get_next_trigger_us();
+    event_mask_t get_combined_evt_mask();
     bool running;
-    List<WorkerObject> worker_cbs;
-    Thread thread;
+    WorkerObject *worker_obj_head;
+    ObjCallbackFunc<Worker, void (Worker::*)()> thread_func;
+    Thread* thread;
+    Semaphore sem;
+};
+
+class WorkerObject
+{
+    friend class Worker;
+public:
+    enum WorkerType {
+        WORKER_TYPE_PERIOD,
+        WORKER_TYPE_EVT
+    };
+
+    WorkerObject(WorkerFunc *_worker_func, WorkerType _worker_type) :
+        worker_func(_worker_func),
+        next(nullptr),
+        worker_type(_worker_type)
+    {}
+
+    ~WorkerObject()
+    {
+        if (worker) {
+            worker->unregister_worker(this);
+        }
+    }
+    virtual void operator()(event_mask_t _evt_mask) = 0;
+    virtual void operator()(uint64_t curr_time) = 0;
+protected:
+    virtual void set_worker(Worker* _worker)
+    {
+        worker = _worker;
+    }
+    WorkerFunc *worker_func;
+    WorkerObject* next;
+    Worker *worker;
+    WorkerType worker_type;
+};
+
+class PeriodicWorkerObject : public WorkerObject
+{
+public:
+    PeriodicWorkerObject(WorkerFunc *_worker_func, uint32_t _period_us) :
+        WorkerObject(_worker_func, WorkerObject::WORKER_TYPE_PERIOD), period_us(_period_us)
+    {}
+
+    uint64_t get_next_trigger_us() const
+    {
+        return next_trigger_time_us;
+    }
+    void operator()(event_mask_t _evt_mask) override {}
+
+    void operator()(uint64_t curr_time) override
+    {
+        if (curr_time >= next_trigger_time_us) {
+            (*worker_func)();
+            next_trigger_time_us = period_us + micros64();
+        }
+    }
+private:
+    void set_worker(Worker* _worker) override
+    {
+        WorkerObject::set_worker(_worker);
+        next_trigger_time_us = period_us + micros64();
+    }
+    uint32_t period_us;
+    uint64_t next_trigger_time_us;
+};
+
+class EventWorkerObject : public WorkerObject
+{
+public:
+    EventWorkerObject(WorkerFunc *_worker_func, event_mask_t _evt_mask, bool any) :
+        WorkerObject(_worker_func, WorkerObject::WORKER_TYPE_EVT),
+        evt_mask(_evt_mask),
+        trigger_any(any)
+    {}
+
+    event_mask_t get_event_mask() const
+    {
+        return evt_mask;
+    }
+
+    void operator()(event_mask_t _evt_mask) override
+    {
+        if ((evt_mask & _evt_mask) == evt_mask) {
+            (*worker_func)();
+        } else if ((evt_mask & _evt_mask) && trigger_any) {
+            (*worker_func)();
+        }
+    }
+
+    void operator()(uint64_t curr_time) override {}
+private:
+    event_mask_t evt_mask;
+    bool trigger_any;
 };
 
 } // namespace DroneCAN

@@ -35,6 +35,7 @@ public:
         }
         return rx_cbs->register_cb(cb);
     }
+
     void unregister_cb(Callback<CanardCANFrame&> &cb)
     {
         if (rx_cbs == nullptr) {
