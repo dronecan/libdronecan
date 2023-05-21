@@ -23,13 +23,37 @@ Semaphore::Semaphore()
 {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
     pthread_mutex_init(&mtx, &attr);
 }
 
 Semaphore::~Semaphore()
 {
     pthread_mutex_destroy(&mtx);
+}
+
+int64_t time_diff_us(struct timespec &ts1, struct timespec &ts2)
+{
+    return 1.0e6*((ts1.tv_sec + (ts1.tv_nsec*1.0e-9)) -
+                  (ts2.tv_sec + (ts2.tv_nsec*1.0e-9)));
+}
+
+// compat pthread_mutex_timedlock
+int __attribute__((weak)) pthread_mutex_timedlock(pthread_mutex_t *mtx, struct timespec *ts)
+{
+    struct timespec curr_ts;
+    clock_gettime(CLOCK_REALTIME, &curr_ts);
+    while (time_diff_us(curr_ts, *ts) > 0) {
+        if (pthread_mutex_trylock(mtx) == 0) {
+            return 0;
+        }
+        struct timespec sleep_ts;
+        sleep_ts.tv_sec = 0;
+        sleep_ts.tv_nsec = 200000; // 200us sleep
+        nanosleep(&sleep_ts, nullptr);
+        clock_gettime(CLOCK_REALTIME, &curr_ts);
+    }
+    return pthread_mutex_trylock(mtx);
 }
 
 bool Semaphore::take(int32_t timeout_us)

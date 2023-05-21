@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-#include "Main.h"
 #include <DC_PAL/DC_PAL_Abstract.h>
 #include <DC_PAL_Empty/CAN.h>
 #include <DC_PAL_Empty/Serial.h>

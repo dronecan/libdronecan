@@ -23,6 +23,9 @@ limitations under the License.
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <unistd.h>
+#include <math.h>
 
 using namespace dronecan::posix;
 
@@ -71,6 +74,7 @@ bool Thread::start(const char *name, size_t stack_size, int priority)
     }
     cond_init = true;
 
+    stack_size = getpagesize()*ceil(stack_size/(double)getpagesize());
     // set the stack size
     ret = pthread_attr_setstacksize(&attr, PTHREAD_STACK_MIN + stack_size);
     if (ret != 0) {
@@ -142,6 +146,7 @@ dronecan::event_t Thread::register_evt()
     if (id == 32) {
         return -1;
     }
+    registered_events |= (1 << id);
     return id;
 }
 
@@ -151,11 +156,11 @@ void Thread::unregister_evt(int8_t id)
     registered_events &= ~(1 << id);
 }
 
-bool Thread::wait_any(dronecan::event_mask_t events, uint32_t timeout_us)
+bool Thread::wait_any(dronecan::event_mask_t &evt_mask, uint32_t timeout_us)
 {
     WITH_SEMAPHORE(sem);
-    if (signalled_events & events) {
-        signalled_events &= ~events;
+    if (signalled_events & evt_mask) {
+        signalled_events &= ~evt_mask;
         return true;
     }
 
@@ -164,25 +169,31 @@ bool Thread::wait_any(dronecan::event_mask_t events, uint32_t timeout_us)
     ts.tv_nsec += timeout_us * 1000;
     ts.tv_sec += ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
-
+    if ((signalled_events & evt_mask) && (evt_mask != 0)) {
+        evt_mask = signalled_events;
+        signalled_events = 0;
+        return true;
+    }
     while (true) {
         int ret = pthread_cond_timedwait(&cond, sem.get_mutex(), &ts);
         if (ret == ETIMEDOUT) {
+            evt_mask = signalled_events;
             signalled_events = 0;
             return false;
         }
-        if (signalled_events & events) {
+        if ((signalled_events & evt_mask) && (evt_mask != 0)) {
+            evt_mask = signalled_events;
             signalled_events = 0;
             return true;
         }
     }
 }
 
-bool Thread::wait_all(dronecan::event_mask_t events, uint32_t timeout_us)
+bool Thread::wait_all(dronecan::event_mask_t evt_mask, uint32_t timeout_us)
 {
     WITH_SEMAPHORE(sem);
-    if ((signalled_events & events) == events) {
-        signalled_events &= ~events;
+    if (((signalled_events & evt_mask) == evt_mask) && (evt_mask != 0)) {
+        signalled_events &= ~evt_mask;
         return true;
     }
 
@@ -192,17 +203,42 @@ bool Thread::wait_all(dronecan::event_mask_t events, uint32_t timeout_us)
     ts.tv_sec += ts.tv_nsec / 1000000000;
     ts.tv_nsec %= 1000000000;
 
+    if (((signalled_events & evt_mask) == evt_mask) && (evt_mask != 0)) {
+        signalled_events = 0;
+        return true;
+    }
     while (true) {
         int ret = pthread_cond_timedwait(&cond, sem.get_mutex(), &ts);
         if (ret == ETIMEDOUT) {
             signalled_events = 0;
             return false;
         }
-        if ((signalled_events & events) == events) {
+        if (((signalled_events & evt_mask) == evt_mask) && (evt_mask != 0)) {
             signalled_events = 0;
             return true;
         }
     }
+}
+
+bool Thread::set_priority(int priority)
+{
+    if (geteuid() != 0) {
+        return false;
+    }
+    struct sched_param param;
+    priority = DRONECAN_PRIO(priority);
+    param.sched_priority = constrain(priority, sched_get_priority_min(SCHED_FIFO), sched_get_priority_max(SCHED_FIFO));
+    int ret = pthread_setschedparam(thread, SCHED_FIFO, &param);
+    if (ret != 0) {
+        dronecan_assert(false, "pthread_setschedparam %s", strerror(ret));
+        return false;
+    }
+    return true;
+}
+
+dronecan::event_mask_t Thread::get_registered_events() const
+{
+    return registered_events;
 }
 
 pthread_key_t Threads::key;
@@ -248,13 +284,22 @@ Thread* Threads::current()
     return (Thread*)pthread_getspecific(key);
 }
 
-bool Threads::wait(dronecan::event_mask_t evt_mask, uint32_t timeout_us)
+bool Threads::wait_any(dronecan::event_mask_t &evt_mask, uint32_t timeout_us)
 {
     Thread* thd = current();
     if (thd == nullptr) {
         return false;
     }
     return thd->wait_any(evt_mask, timeout_us);
+}
+
+bool Threads::wait_all(dronecan::event_mask_t evt_mask, uint32_t timeout_us)
+{
+    Thread* thd = current();
+    if (thd == nullptr) {
+        return false;
+    }
+    return thd->wait_all(evt_mask, timeout_us);
 }
 
 Thread* Threads::register_main_thread()
@@ -265,5 +310,6 @@ Thread* Threads::register_main_thread()
     }
     main_thread->start(nullptr, 0, 0);
     pthread_setspecific(key, main_thread);
+    main_thread->thread = pthread_self();
     return main_thread;
 }

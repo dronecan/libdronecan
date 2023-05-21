@@ -32,12 +32,14 @@ public:
     void signal(uint32_t events) override;
     dronecan::event_t register_evt() override;
     void unregister_evt(int8_t id) override;
-    bool wait_any(uint32_t events, uint32_t timeout_us) override;
+    bool wait_any(uint32_t &events, uint32_t timeout_us) override;
     bool wait_all(uint32_t events, uint32_t timeout_us) override;
+    bool set_priority(int priority);
+    dronecan::event_mask_t get_registered_events() const override;
 private:
     bool start(const char *name, size_t stack_size, int priority);
-    uint32_t registered_events;
-    uint32_t signalled_events;
+    dronecan::event_mask_t registered_events;
+    dronecan::event_mask_t signalled_events;
     pthread_cond_t cond;
     pthread_t thread;
     dronecan::Threads::ThreadFunc *thread_func;
@@ -56,7 +58,8 @@ public:
     ~Threads();
     Thread* start(dronecan::Threads::ThreadFunc &thread_func, const char *name, size_t stack_size, int priority) override;
     Thread* current() override;
-    bool wait(uint32_t evt_mask, uint32_t timeout_us) override;
+    bool wait_any(dronecan::event_mask_t &evt_mask, uint32_t timeout_us) override;
+    bool wait_all(dronecan::event_mask_t evt_mask, uint32_t timeout_us) override;
     void stop(dronecan::Thread* thread) override;
     Thread* register_main_thread() override;
 private:
